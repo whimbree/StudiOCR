@@ -1,0 +1,2 @@
+This folder should contain JPEG images for testing.
+Feel free to add JPEG images of your notes to this folder.

@@ -1,0 +1,9 @@
+autopep8==1.5.3
+numpy==1.18.5
+opencv-python==4.2.0.34
+Pillow==7.1.2
+pycodestyle==2.6.0
+PySide2==5.15.0
+pytesseract==0.3.4
+shiboken2==5.15.0
+toml==0.10.1

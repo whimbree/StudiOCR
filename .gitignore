@@ -1,0 +1,5 @@
+# Ignore IDE specific stuff
+/.idea
+
+# Ignore venv packages
+/venv
