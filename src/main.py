@@ -1,5 +1,6 @@
 from PySide2.QtCore import Slot, Qt
 import sys
+import wsl
 import random
 from PySide2.QtWidgets import QApplication, QLabel, QPushButton, QVBoxLayout, QWidget
 
@@ -8,6 +9,9 @@ from PySide2.QtWidgets import QApplication, QLabel, QPushButton, QVBoxLayout, QW
 
 
 def main():
+    # Set DISPLAY env variable accordingly if running under WSL
+    wsl.set_display_to_host()
+
     app = QApplication(sys.argv)  # Create application
 
     widget = HelloWidget()  # Create widget

@@ -3,3 +3,5 @@
 
 # Ignore venv packages
 /venv
+
+/src/__pycache__
