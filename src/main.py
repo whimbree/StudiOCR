@@ -1,8 +1,10 @@
 from PySide2.QtCore import Slot, Qt
-import sys
-import wsl
-import random
 from PySide2.QtWidgets import QApplication, QLabel, QPushButton, QVBoxLayout, QWidget
+import sys
+import random
+
+from db import *
+import wsl
 
 # References
 # https://doc.qt.io/qtforpython/

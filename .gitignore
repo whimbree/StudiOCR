@@ -1,5 +1,6 @@
 # Ignore IDE specific stuff
 /.idea
+/.vscode
 
 # Ignore venv packages
 /venv
