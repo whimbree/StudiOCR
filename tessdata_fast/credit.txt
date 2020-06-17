@@ -1,1 +1,0 @@
-Models in this folder come from: https://github.com/tesseract-ocr/tessdata_fast
