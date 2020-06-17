@@ -1,9 +1,9 @@
 from peewee import *
 from playhouse.sqlite_ext import SqliteExtDatabase
 
+# Should likely change where the database files are stored
 DATABASE = 'ocr_files.db'
 
-# Should likely change where the database files are stored
 db = SqliteExtDatabase(DATABASE, c_extensions=True, pragmas=(
     ('journal_mode', 'wal'),  # Use WAL-mode
     ('foreign_keys', 1)))  # Enforce foreign-key constraints
@@ -39,7 +39,7 @@ class OcrBlock(BaseModel):
     # Should we store confidence values?
     conf = IntegerField()
     text = TextField()
-    page = ForeignKeyField(OcrPage, backref='pages')
+    page = ForeignKeyField(OcrPage, backref='blocks')
 
 
 # Helper function to intially create the tables in the database
@@ -47,6 +47,8 @@ def create_tables():
     with db:
         db.create_tables([OcrDocument, OcrPage, OcrBlock])
 
-
-# If the database doesn't exist yet, generate it
-create_tables()
+# Usage
+# test = OcrDocument.get(OcrDocument.name == 'test')
+# for t in test.pages:
+#     for b in t.blocks:
+#         print(b.text)
