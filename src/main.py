@@ -159,6 +159,34 @@ class DocWindow(QWidget):
         self.setWindowTitle(doc.name)
         # TODO: Implement
 
+        self._doc = doc
+
+        self._filter = ''
+
+        layout = QVBoxLayout()
+
+        #search bar
+        self.search_bar = QLineEdit()
+
+        self.search_bar.setPlaceholderText("Search through notes...")
+
+        self.search_bar.textChanged.connect(self.update_filter)
+
+        layout.addWidget(self.search_bar, alignment=Qt.AlignTop)
+
+        self.setLayout(layout)
+
+    def update_filter(self):
+        #set filter to the value in the search bar
+        self._filter = self.search_bar.text()
+
+        #filter through each block in the pages of the document
+        for page in self._doc.pages:
+            for block in page.blocks:
+                #if the filter value is contained in the text, print to console
+                if(self._filter.lower() in block.text.lower()):
+                    print(block.text)
+
 
 class SingleDocumentButton(QToolButton):
     def __init__(self, name, image, *args, **kwargs):
