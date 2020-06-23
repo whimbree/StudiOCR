@@ -70,6 +70,8 @@ class ListDocuments(QWidget):
 
         layout = QGridLayout()
 
+        # If there are no documents, then the for loop won't create the index variable
+        idx = 0
         for idx, doc in enumerate(OcrDocument.select()):
             img = None
             name = doc.name

@@ -4,7 +4,8 @@ from playhouse.sqlite_ext import SqliteExtDatabase
 # Should likely change where the database files are stored
 DATABASE = 'ocr_files.db'
 
-db = SqliteExtDatabase(DATABASE, c_extensions=True, pragmas=(
+# Do we need c extensions?
+db = SqliteExtDatabase(DATABASE, c_extensions=False, pragmas=(
     ('journal_mode', 'wal'),  # Use WAL-mode
     ('foreign_keys', 1)))  # Enforce foreign-key constraints
 
