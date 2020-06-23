@@ -1,6 +1,6 @@
-from PySide2.QtCore import Slot, Qt
-from PySide2.QtWidgets import QApplication, QLabel, QPushButton, QVBoxLayout, QWidget, QFileDialog
-from PySide2.QtGui import QPixmap
+from PySide2.QtCore import *
+from PySide2.QtWidgets import *
+from PySide2.QtGui import *
 
 import sys
 import random
@@ -13,97 +13,183 @@ import wsl
 
 
 def main():
+    # If the database has not been created, then create it
+    create_tables()
+
     # Set DISPLAY env variable accordingly if running under WSL
     wsl.set_display_to_host()
 
-    app = QApplication(sys.argv)  # Create application
+    sys_argv = sys.argv
+    sys_argv += ['--style', 'Fusion']
+    app = QApplication(sys_argv)  # Create application
 
-    widget = Main_UI()  # Create widget
-    widget.show()  # Show widget
+    window = MainWindow()  # Create main window
+    window.show()  # Show main window
 
     app.exec_()  # Start application
 
     exit(0)
 
 
-class Main_UI(QWidget):
-    def __init__(self):
-        QWidget.__init__(self)
+class MainWindow(QMainWindow):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
 
-        self.choose_file_button = QPushButton("Choose file")
-
-        self.label = QLabel(self)
-        pixmap = QPixmap('test_img/conv_props.jpg')
-        self.label.setPixmap(pixmap.scaled(256, 256, Qt.KeepAspectRatio))
-        self.label.show()
-
-        self.layout = QVBoxLayout()
-        self.resize(300, 300)
-        self.move(300, 300)
         self.setWindowTitle("StudiOCR")
+        self.resize(900, 900)
 
-        self.layout.addWidget(self.choose_file_button, alignment=Qt.AlignRight)
+        self.main_widget = MainUI()
 
-        self.setLayout(self.layout)
-
-        self.choose_file_button.clicked.connect(self.choose_file)
-
-    def choose_file(self):
-        print("Button pressed")
-        file_name = QFileDialog.getOpenFileName()
-        filepath = file_name[0]
-        print(filepath)
+        # Set the central widget of the Window.
+        self.setCentralWidget(self.main_widget)
 
 
-class file_browser(QWidget):
-    def __init__(self):
-        QWidget.__init__(self)
+class MainUI(QWidget):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
 
-        self.button = QPushButton("Choose file")
+        self.welcome_label = QLabel('Welcome to StudiOCR')
+        self.welcome_label.setAlignment(Qt.AlignCenter)
 
-        # Create and setup layout object
+        self.documents = ListDocuments()
+
         self.layout = QVBoxLayout()
-        self.layout.addWidget(self.button)
-
-        # Apply layout
+        self.layout.addWidget(self.welcome_label, alignment=Qt.AlignTop)
+        self.layout.addWidget(self.documents, alignment=Qt.AlignTop)
         self.setLayout(self.layout)
 
-        # Connecting the signal from button
-        self.button.clicked.connect(self.button_action)
 
-    def button_action(self):
-        print("Button pressed")
-        self.open_fs()
+class ListDocuments(QWidget):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
 
-    def open_fs(self):
-        file = QFileDialog.getOpenFileName()
-        filepath = file[0]
-        print(filepath)
+        self.setSizePolicy(
+            QSizePolicy.MinimumExpanding,
+            QSizePolicy.MinimumExpanding
+        )
+
+        layout = QGridLayout()
+
+        for idx, doc in enumerate(OcrDocument.select()):
+            img = None
+            name = doc.name
+            if len(doc.pages) > 0:
+                img = doc.pages[0].image
+
+            doc_button = SingleDocumentButton(name, img)
+            doc_button.pressed.connect(
+                lambda doc=doc: self.create_doc_window(doc))
+            layout.addWidget(doc_button, idx / 4, idx % 4, 1, 1)
+
+        new_doc_button = SingleDocumentButton('Add New Document', None)
+        new_doc_button.pressed.connect(
+            lambda: self.create_new_doc_window())
+        layout.addWidget(new_doc_button, (idx+1) / 4, (idx+1) % 4, 1, 1)
+
+        self.setLayout(layout)
+
+    def create_doc_window(self, doc):
+        self.doc_window = DocWindow(doc)
+        self.doc_window.show()
+
+    def create_new_doc_window(self):
+        self.new_doc_window = NewDocWindow()
+        self.new_doc_window.show()
 
 
-class HelloWidget(QWidget):
-    def __init__(self):
-        QWidget.__init__(self)
+class NewDocWindow(QWidget):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.setWindowTitle("Add New Document")
 
-        self.hello = ["Hello, world!", "Goodbye, world!"]
+        self.settings = NewDocOptions()
 
-        self.button = QPushButton("Click me!")
-        self.text = QLabel(self.hello[0])
-        self.text.setAlignment(Qt.AlignCenter)
+        layout = QHBoxLayout()
+        layout.addWidget(self.settings)
+        # TODO: Create some kind of preview for the selected image files
+        self.setLayout(layout)
 
-        # Create and setup layout object
-        self.layout = QVBoxLayout()
-        self.layout.addWidget(self.text)
-        self.layout.addWidget(self.button)
 
-        # Apply layout
-        self.setLayout(self.layout)
+class NewDocOptions(QWidget):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
 
-        # Connecting the signal from button
-        self.button.clicked.connect(self.button_action)
+        self.file_names = []
 
-    def button_action(self):
-        self.text.setText(random.choice(self.hello))
+        self.choose_file_button = QPushButton("Choose images")
+        self.choose_file_button.clicked.connect(self.choose_files)
+
+        self.options = QGroupBox("Options")
+        self.name_label = QLabel("Document Name: ")
+        self.name_edit = QLineEdit()
+        options_layout = QVBoxLayout()
+        options_layout.addWidget(self.name_label)
+        options_layout.addWidget(self.name_edit)
+        self.options.setLayout(options_layout)
+
+        self.submit = QPushButton("Process Document")
+        self.submit.clicked.connect(self.process_document)
+
+        layout = QVBoxLayout()
+        layout.addWidget(self.choose_file_button)
+        layout.addWidget(self.options)
+        layout.addWidget(self.submit, alignment=Qt.AlignBottom)
+        self.setLayout(layout)
+
+    def choose_files(self):
+        file_dialog = QFileDialog(self)
+        file_dialog.setFileMode(QFileDialog.ExistingFiles)
+        file_dialog.setNameFilter(
+            "Images (*.png *.xpm *.jpg);;PDF Files (*.pdf);;Powerpoint Files (*.pptx)")
+        file_dialog.selectNameFilter("Images (*.png *.xpm *.jpg)")
+
+        if file_dialog.exec_():
+            self.file_names = file_dialog.selectedFiles()
+
+    def process_document(self):
+        print('Process document clicked')
+        # TODO: Spawn a new process to handle processing the new document
+
+
+class DocWindow(QWidget):
+    def __init__(self, doc, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.setWindowTitle(doc.name)
+        # TODO: Implement
+
+
+class SingleDocumentButton(QToolButton):
+    def __init__(self, name, image, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+
+        self.setFixedSize(160, 160)
+
+        layout = QVBoxLayout()
+
+        label = QLabel(name)
+        if image is not None:
+            thumbnail = DocumentThumbnail(image, 140)
+            layout.addWidget(thumbnail, alignment=Qt.AlignCenter)
+
+        layout.addWidget(label, alignment=Qt.AlignCenter)
+
+        self.setLayout(layout)
+
+
+class DocumentThumbnail(QLabel):
+    def __init__(self, image, height, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        qimg = QImage.fromData(image)
+        self.height = height
+        self.width = int((self.height / qimg.height()) * qimg.width())
+        self.pixmap = QPixmap.fromImage(qimg)
+
+    def paintEvent(self, event: QPaintEvent):
+        painter = QPainter(self)
+        painter.drawPixmap(event.rect(), self.pixmap)
+
+    def sizeHint(self):
+        return QSize(self.width, self.height)
 
 
 if __name__ == "__main__":
