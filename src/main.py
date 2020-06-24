@@ -124,8 +124,6 @@ class ListDocuments(QWidget):
                 button.hide()
 
 
-
-
 class NewDocWindow(QWidget):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -179,7 +177,7 @@ class NewDocOptions(QWidget):
         print('Process document clicked')
         # TODO: Spawn a new process to handle processing the new document
 
-# reference for writeTofile: https://pynative.com/python-sqlite-blob-insert-and-retrieve-digital-data/
+
 class DocWindow(QWidget):
     def __init__(self, doc, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -213,6 +211,7 @@ class DocWindow(QWidget):
 
         self.setLayout(layout)
 
+    # reference for writeTofile: https://pynative.com/python-sqlite-blob-insert-and-retrieve-digital-data/
     def writeTofile(self, data, filename):
         with open(filename, 'wb') as file:
             file.write(data)
@@ -224,7 +223,7 @@ class DocWindow(QWidget):
 
         if width is None and height is None:
             return image
-        elif width is None:
+        elif width is None and h != height:
             ratio = height / h
             new_dim = (int(w * ratio), height)
         else:
@@ -247,7 +246,7 @@ class DocWindow(QWidget):
                     img = cv2.rectangle(img, (self._listBlocks[i][0], self._listBlocks[i][1]), (self._listBlocks[i][0] + self._listBlocks[i][2], self._listBlocks[i][1] + self._listBlocks[i][3]), (255, 0, 0), 2)
                 else:
                     break
-            img_small = self.resize_keep_aspect_ratio(img, height=2000)
+            img_small = self.resize_keep_aspect_ratio(img, height=1400)
             cv2.imshow('img', img_small)
             #it should display for only 1 frame but it's not
             cv2.waitKey(1)
@@ -278,7 +277,7 @@ class DocWindow(QWidget):
                     img = cv2.rectangle(img, (self._listBlocks[i][0], self._listBlocks[i][1]), (self._listBlocks[i][0] + self._listBlocks[i][2], self._listBlocks[i][1] + self._listBlocks[i][3]), (255, 0, 0), 2)
                 else:
                     break
-            img_small = self.resize_keep_aspect_ratio(img, height=1450)
+            img_small = self.resize_keep_aspect_ratio(img, height=2000)
             cv2.imshow('img', img_small)
             #it should display for only 1 frame but it's not
             cv2.waitKey(1)
