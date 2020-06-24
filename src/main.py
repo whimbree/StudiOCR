@@ -69,7 +69,17 @@ class ListDocuments(QWidget):
             QSizePolicy.MinimumExpanding
         )
 
-        layout = QGridLayout()
+        self._layout = QVBoxLayout()
+
+        grid = QGridLayout()
+
+        self._docButtons = []
+
+        self.search_bar = QLineEdit()
+        self.search_bar.setPlaceholderText("Search for document name...")
+        self.search_bar.textChanged.connect(self.update_filter)
+
+        self._layout.addWidget(self.search_bar)
 
         # If there are no documents, then the for loop won't create the index variable
         idx = 0
@@ -82,14 +92,17 @@ class ListDocuments(QWidget):
             doc_button = SingleDocumentButton(name, img)
             doc_button.pressed.connect(
                 lambda doc=doc: self.create_doc_window(doc))
-            layout.addWidget(doc_button, idx / 4, idx % 4, 1, 1)
+            grid.addWidget(doc_button, idx / 4, idx % 4, 1, 1)
+            self._docButtons.append(doc_button)
 
         new_doc_button = SingleDocumentButton('Add New Document', None)
         new_doc_button.pressed.connect(
             lambda: self.create_new_doc_window())
-        layout.addWidget(new_doc_button, (idx+1) / 4, (idx+1) % 4, 1, 1)
+        grid.addWidget(new_doc_button, (idx+1) / 4, (idx+1) % 4, 1, 1)
 
-        self.setLayout(layout)
+        self._layout.addLayout(grid)
+
+        self.setLayout(self._layout)
 
     def create_doc_window(self, doc):
         self.doc_window = DocWindow(doc)
@@ -98,6 +111,19 @@ class ListDocuments(QWidget):
     def create_new_doc_window(self):
         self.new_doc_window = NewDocWindow()
         self.new_doc_window.show()
+
+    def update_filter(self):
+        self._filter = self.search_bar.text()
+
+        for button in self._docButtons:
+            if(self._filter.lower() in button.name.lower()):
+                print(self._filter)
+                print(button.name)
+                button.show()
+            else:
+                button.hide()
+
+
 
 
 class NewDocWindow(QWidget):
@@ -269,6 +295,8 @@ class SingleDocumentButton(QToolButton):
     def __init__(self, name, image, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
+        self._name = name
+
         self.setFixedSize(160, 160)
 
         layout = QVBoxLayout()
@@ -281,6 +309,14 @@ class SingleDocumentButton(QToolButton):
         layout.addWidget(label, alignment=Qt.AlignCenter)
 
         self.setLayout(layout)
+
+    @property
+    def name(self):
+        return self._name
+
+    @name.setter
+    def name(self, name):
+        self._name = name
 
 
 class DocumentThumbnail(QLabel):
