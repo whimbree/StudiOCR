@@ -217,25 +217,29 @@ class DocWindow(QWidget):
         self._filter = self.search_bar.text()
 
         #filter through each block in the pages of the document
+        #pick the page with the first matching block to display
         setBlocks = set()
         listBlocks = []
+        pageChosen = (self._doc.pages)[0]
         for page in self._doc.pages:
             for block in page.blocks:
                 #if the filter value is contained in the text, print to console
                 if(self._filter.lower() in block.text.lower()):
                     print(block.text)
                     if(block not in setBlocks):
-                        listBlocks.append((block.left, block.top, block.width, block.height))
+                        listBlocks.append((block.left, block.top, block.width, block.height,page.number))
                         setBlocks.add(block)
         #doc_window2 = DocWindow2(list, page)
         #doc_window2.show()
-        writeTofile(page.image, "../test_img/conv_props3.jpg")
+        pageChosen = (self._doc.pages)[listBlocks[0][4]]
+        writeTofile(pageChosen.image, "../test_img/conv_props3.jpg")
         img = cv2.imread("../test_img/conv_props3.jpg")
         img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
         for i in range(len(setBlocks)):
              img = cv2.rectangle(img, (listBlocks[i][0], listBlocks[i][1]), (listBlocks[i][0] + listBlocks[i][2], listBlocks[i][1] + listBlocks[i][3]), (255, 0, 0), 2)
-        img_small = resize_keep_aspect_ratio(img, height=1500)
+        img_small = resize_keep_aspect_ratio(img, height=2000)
         cv2.imshow('img', img_small)
+        #it should display for only 1 frame but it's not
         cv2.waitKey(1)
 
 # Probably need to switch from cv2 display to inside a QT window
