@@ -197,28 +197,7 @@ class NewDocOptions(QWidget):
         print('Process document clicked')
         # TODO: Spawn a new process to handle processing the new document
 
-# I get an error saying the methods are undefined if the method is inside the DocWindow class
 # reference for writeTofile: https://pynative.com/python-sqlite-blob-insert-and-retrieve-digital-data/
-
-def writeTofile(data, filename):
-    with open(filename, 'wb') as file:
-        file.write(data)
-    print("Stored blob data into: ", filename, "\n")
-def resize_keep_aspect_ratio(image, width=None, height=None, inter=cv2.INTER_AREA):
-    new_dim = None
-    h, w = image.shape[:2]
-
-    if width is None and height is None:
-        return image
-    elif width is None:
-        ratio = height / h
-        new_dim = (int(w * ratio), height)
-    else:
-        ratio = width / w
-        new_dim = (width, int(h * ratio))
-
-    return cv2.resize(image, new_dim, interpolation=inter)
-
 class DocWindow(QWidget):
     def __init__(self, doc, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -228,6 +207,10 @@ class DocWindow(QWidget):
         self._doc = doc
 
         self._filter = ''
+
+        self._currPage = (self._doc.pages)[0]
+
+        self._listBlocks = []
 
         layout = QVBoxLayout()
 
@@ -240,7 +223,19 @@ class DocWindow(QWidget):
 
         layout.addWidget(self.search_bar, alignment=Qt.AlignTop)
 
+        self.btn = QPushButton("Next Page")
+
+        self.btn.clicked.connect(self.display_next)
+
+        layout.addWidget(self.btn)
+
         self.setLayout(layout)
+
+    def writeTofile(self, data, filename):
+        with open(filename, 'wb') as file:
+            file.write(data)
+        print("Stored blob data into: ", filename, "\n")
+
     def resize_keep_aspect_ratio(self, image, width=None, height=None, inter=cv2.INTER_AREA):
         new_dim = None
         h, w = image.shape[:2]
@@ -256,35 +251,55 @@ class DocWindow(QWidget):
 
         return cv2.resize(image, new_dim, interpolation=inter)
 
+    def display_next(self):
+        if self._listBlocks:
+            for i in range(len(self._listBlocks)):
+                if (self._listBlocks[i][4] != self._currPage):
+                    self._currPage = self._listBlocks[i][4]
+                    break
+            self.writeTofile((self._doc.pages)[self._currPage].image, "../test_img/conv_props3.jpg")
+            img = cv2.imread("../test_img/conv_props3.jpg")
+            img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
+            for i in range(len(self._listBlocks)):
+                if(self._listBlocks[i][4] == self._currPage):
+                    img = cv2.rectangle(img, (self._listBlocks[i][0], self._listBlocks[i][1]), (self._listBlocks[i][0] + self._listBlocks[i][2], self._listBlocks[i][1] + self._listBlocks[i][3]), (255, 0, 0), 2)
+                else:
+                    break
+            img_small = self.resize_keep_aspect_ratio(img, height=2000)
+            cv2.imshow('img', img_small)
+            #it should display for only 1 frame but it's not
+            cv2.waitKey(1)
+
     def update_filter(self):
-        #set filter to the value in the search bar
         self._filter = self.search_bar.text()
 
         #filter through each block in the pages of the document
         #pick the page with the first matching block to display
-        setBlocks = set()
-        listBlocks = []
-        pageChosen = (self._doc.pages)[0]
+
+        #reset listBlocks
+        self._listBlocks = []
         for page in self._doc.pages:
             for block in page.blocks:
                 #if the filter value is contained in the text, print to console
                 if(self._filter.lower() in block.text.lower()):
                     print(block.text)
-                    if(block not in setBlocks):
-                        listBlocks.append((block.left, block.top, block.width, block.height,page.number))
-                        setBlocks.add(block)
+                    self._listBlocks.append((block.left, block.top, block.width, block.height, page.number))
         #doc_window2 = DocWindow2(list, page)
         #doc_window2.show()
-        pageChosen = (self._doc.pages)[listBlocks[0][4]]
-        writeTofile(pageChosen.image, "../test_img/conv_props3.jpg")
-        img = cv2.imread("../test_img/conv_props3.jpg")
-        img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
-        for i in range(len(setBlocks)):
-             img = cv2.rectangle(img, (listBlocks[i][0], listBlocks[i][1]), (listBlocks[i][0] + listBlocks[i][2], listBlocks[i][1] + listBlocks[i][3]), (255, 0, 0), 2)
-        img_small = resize_keep_aspect_ratio(img, height=2000)
-        cv2.imshow('img', img_small)
-        #it should display for only 1 frame but it's not
-        cv2.waitKey(1)
+        if(self._listBlocks):
+            self._currPage = self._listBlocks[0][4]
+            self.writeTofile((self._doc.pages)[self._currPage].image, "../test_img/conv_props3.jpg")
+            img = cv2.imread("../test_img/conv_props3.jpg")
+            img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
+            for i in range(len(self._listBlocks)):
+                if(self._listBlocks[i][4] == self._currPage):
+                    img = cv2.rectangle(img, (self._listBlocks[i][0], self._listBlocks[i][1]), (self._listBlocks[i][0] + self._listBlocks[i][2], self._listBlocks[i][1] + self._listBlocks[i][3]), (255, 0, 0), 2)
+                else:
+                    break
+            img_small = self.resize_keep_aspect_ratio(img, height=1450)
+            cv2.imshow('img', img_small)
+            #it should display for only 1 frame but it's not
+            cv2.waitKey(1)
 
 # Probably need to switch from cv2 display to inside a QT window
 class DocWindow2(QWidget):
