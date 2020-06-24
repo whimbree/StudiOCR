@@ -1,5 +1,10 @@
 # Ignore IDE specific stuff
 /.idea
+/.vscode
 
 # Ignore venv packages
 /venv
+
+/src/__pycache__
+
+*.db
