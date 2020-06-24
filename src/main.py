@@ -6,6 +6,7 @@ from multiprocessing import Process, Queue, Pipe
 
 import sys
 import random
+import cv2
 
 from ocr import *
 
@@ -165,7 +166,26 @@ class ListDocuments(QWidget):
             QSizePolicy.MinimumExpanding
         )
 
-        layout = QGridLayout()
+        self._layout = QVBoxLayout()
+
+        doc_grid = QGridLayout()
+        ui_box = QHBoxLayout()
+
+        self._docButtons = []
+
+        self.search_bar = QLineEdit()
+        self.search_bar.setPlaceholderText("Search for document name...")
+        self.search_bar.textChanged.connect(self.update_filter)
+
+        self.doc_search = QRadioButton("DOC")
+        self.doc_search.setChecked(True)
+        self.ocr_search = QRadioButton("OCR")
+
+        ui_box.addWidget(self.doc_search)
+        ui_box.addWidget(self.ocr_search)
+        ui_box.addWidget(self.search_bar)
+
+        # self._layout.addWidget(self.search_bar)
 
         # If there are no documents, then the for loop won't create the index variable
         self.idx = 0
@@ -175,18 +195,22 @@ class ListDocuments(QWidget):
             if len(doc.pages) > 0:
                 img = doc.pages[0].image
 
-            doc_button = SingleDocumentButton(name, img)
+            doc_button = SingleDocumentButton(name, img, doc)
             doc_button.pressed.connect(
                 lambda doc=doc: self.create_doc_window(doc))
-            layout.addWidget(doc_button, self.idx / 4, self.idx % 4, 1, 1)
+            doc_grid.addWidget(doc_button, self.idx / 4, self.idx % 4, 1, 1)
+            self._docButtons.append(doc_button)
 
-        new_doc_button = SingleDocumentButton('Add New Document', None)
+        new_doc_button = SingleDocumentButton('Add New Document', None, None)
         new_doc_button.pressed.connect(
             lambda: self.create_new_doc_window())
-        layout.addWidget(new_doc_button, (self.idx+1) /
-                         4, (self.idx+1) % 4, 1, 1)
+        doc_grid.addWidget(new_doc_button, (self.idx+1) /
+                           4, (self.idx+1) % 4, 1, 1)
 
-        self.setLayout(layout)
+        self._layout.addLayout(ui_box)
+        self._layout.addLayout(doc_grid)
+
+        self.setLayout(self._layout)
 
     def display_new_document(self, doc_id):
         # For some reason the doc_id does not come through.
@@ -206,6 +230,25 @@ class ListDocuments(QWidget):
     def create_new_doc_window(self):
         self.new_doc_window = NewDocWindow(self.new_doc_cb)
         self.new_doc_window.show()
+
+    def update_filter(self):
+        self._filter = self.search_bar.text()
+
+        if(self.doc_search.isChecked()):
+            for button in self._docButtons:
+                if(self._filter.lower() in button.name.lower()):
+                    button.show()
+                else:
+                    button.hide()
+        elif(self.ocr_search.isChecked()):
+            for button in self._docButtons:
+                for page in button.doc.pages:
+                    for block in page.blocks:
+                        if(self._filter.lower() in block.text.lower()):
+                            button.show()
+                            break
+                        else:
+                            button.hide()
 
 
 class NewDocWindow(QWidget):
@@ -242,12 +285,17 @@ class NewDocOptions(QWidget):
         options_layout.addWidget(self.name_edit)
         self.options.setLayout(options_layout)
 
+        self.file_names_label = QLabel("Files Chosen: ")
+        self.listwidget = QListWidget()
+
         self.submit = QPushButton("Process Document")
         self.submit.clicked.connect(self.process_document)
 
         layout = QVBoxLayout()
         layout.addWidget(self.choose_file_button)
         layout.addWidget(self.options)
+        layout.addWidget(self.file_names_label)
+        layout.addWidget(self.listwidget)
         layout.addWidget(self.submit, alignment=Qt.AlignBottom)
         self.setLayout(layout)
 
@@ -260,6 +308,10 @@ class NewDocOptions(QWidget):
 
         if file_dialog.exec_():
             self.file_names = file_dialog.selectedFiles()
+
+        for i in range(len(self.file_names)):
+            self.listwidget.insertItem(i, self.file_names[i])
+        # self.listwidget.clicked.connect(self.clicked)
 
     def process_document(self):
         name = self.name_edit.text()
@@ -295,10 +347,129 @@ class DocWindow(QWidget):
         self.setWindowTitle(doc.name)
         # TODO: Implement
 
+        self._doc = doc
+
+        self._filter = ''
+
+        self._currPage = (self._doc.pages)[0]
+
+        self._listBlocks = []
+
+        layout = QVBoxLayout()
+
+        # search bar
+        self.search_bar = QLineEdit()
+
+        self.search_bar.setPlaceholderText("Search through notes...")
+
+        self.search_bar.textChanged.connect(self.update_filter)
+
+        layout.addWidget(self.search_bar, alignment=Qt.AlignTop)
+
+        self.btn = QPushButton("Next Page")
+
+        self.btn.clicked.connect(self.display_next)
+
+        layout.addWidget(self.btn)
+
+        self.setLayout(layout)
+
+    # reference for writeTofile: https://pynative.com/python-sqlite-blob-insert-and-retrieve-digital-data/
+    def writeTofile(self, data, filename):
+        with open(filename, 'wb') as file:
+            file.write(data)
+        print("Stored blob data into: ", filename, "\n")
+
+    def resize_keep_aspect_ratio(self, image, width=None, height=None, inter=cv2.INTER_AREA):
+        new_dim = None
+        h, w = image.shape[:2]
+
+        if width is None and height is None:
+            return image
+        elif width is None:
+            ratio = height / h
+            new_dim = (int(w * ratio), height)
+        else:
+            ratio = width / w
+            new_dim = (width, int(h * ratio))
+
+        return cv2.resize(image, new_dim, interpolation=inter)
+
+    def display_next(self):
+        if self._listBlocks:
+            originalValue = self._currPage
+            for i in range(len(self._listBlocks)):
+                if (self._listBlocks[i][4] > self._currPage):
+                    self._currPage = self._listBlocks[i][4]
+                    break
+            else:
+                print("Looping back around")
+                self._currPage = self._listBlocks[0][4]
+            if originalValue != self._currPage:
+                self.writeTofile((self._doc.pages)[
+                                 self._currPage].image, "../test_img/conv_props3.jpg")
+                img = cv2.imread("../test_img/conv_props3.jpg")
+                img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
+                for i in range(len(self._listBlocks)):
+                    if(self._listBlocks[i][4] == self._currPage):
+                        img = cv2.rectangle(img, (self._listBlocks[i][0], self._listBlocks[i][1]), (
+                            self._listBlocks[i][0] + self._listBlocks[i][2], self._listBlocks[i][1] + self._listBlocks[i][3]), (255, 0, 0), 2)
+                #img_small = self.resize_keep_aspect_ratio(img, height=1500)
+                cv2.imshow('img', img)
+                # it should display for only 1 frame but it's not
+                cv2.waitKey(1)
+
+    def update_filter(self):
+        self._filter = self.search_bar.text()
+
+        # filter through each block in the pages of the document
+        # pick the page with the first matching block to display
+
+        # reset listBlocks
+        self._listBlocks = []
+        for page in self._doc.pages:
+            for block in page.blocks:
+                # if the filter value is contained in the text, print to console
+                if(self._filter.lower() in block.text.lower()):
+                    print(block.text, page.number)
+                    self._listBlocks.append(
+                        (block.left, block.top, block.width, block.height, page.number))
+        #doc_window2 = DocWindow2(list, page)
+        # doc_window2.show()
+        if self._listBlocks:
+            self._currPage = self._listBlocks[0][4]
+            self.writeTofile((self._doc.pages)[
+                             self._currPage].image, "../test_img/conv_props3.jpg")
+            img = cv2.imread("../test_img/conv_props3.jpg")
+            img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
+            for i in range(len(self._listBlocks)):
+                if(self._listBlocks[i][4] == self._currPage):
+                    img = cv2.rectangle(img, (self._listBlocks[i][0], self._listBlocks[i][1]), (
+                        self._listBlocks[i][0] + self._listBlocks[i][2], self._listBlocks[i][1] + self._listBlocks[i][3]), (255, 0, 0), 2)
+                else:
+                    break
+            #img_small = self.resize_keep_aspect_ratio(img, height=1500)
+            cv2.imshow('img', img)
+            # it should display for only 1 frame but it's not
+            cv2.waitKey(1)
+
+# Probably need to switch from cv2 display to inside a QT window
+
+
+class DocWindow2(QWidget):
+    def __init__(self, matchesCoordinates, page, input,  *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.setWindowTitle(input)
+        qimg = QImage.fromData(page.image)
+        pixmap = QPixmap.fromImage(qimg)
+
 
 class SingleDocumentButton(QToolButton):
-    def __init__(self, name, image, *args, **kwargs):
+    def __init__(self, name, image, doc, *args, **kwargs):
         super().__init__(*args, **kwargs)
+
+        self._name = name
+        self._doc = doc
 
         self.setFixedSize(160, 160)
 
@@ -312,6 +483,22 @@ class SingleDocumentButton(QToolButton):
         layout.addWidget(label, alignment=Qt.AlignCenter)
 
         self.setLayout(layout)
+
+    @property
+    def name(self):
+        return self._name
+
+    @name.setter
+    def name(self, name):
+        self._name = name
+
+    @property
+    def doc(self):
+        return self._doc
+
+    @doc.setter
+    def doc(self, doc):
+        self._doc = doc
 
 
 class DocumentThumbnail(QLabel):
