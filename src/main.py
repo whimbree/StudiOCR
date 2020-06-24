@@ -427,7 +427,6 @@ class DocWindow(QWidget):
 
         # reset listBlocks
         self._listBlocks = []
-<<<<<<< HEAD
         if self._filter:
             self.btn.setVisible(True)
             for page in self._doc.pages:
@@ -456,7 +455,6 @@ class DocWindow(QWidget):
             print("There was no matches")
             cv2.destroyAllWindows()
             self.btn.setVisible(False)
-=======
         for page in self._doc.pages:
             for block in page.blocks:
                 # if the filter value is contained in the text, print to console
@@ -482,7 +480,6 @@ class DocWindow(QWidget):
             cv2.imshow('img', img)
             # it should display for only 1 frame but it's not
             cv2.waitKey(1)
->>>>>>> fe73fd519b1c39485e9d52bb19feef52c11ba274
 
 # Probably need to switch from cv2 display to inside a QT window
 
