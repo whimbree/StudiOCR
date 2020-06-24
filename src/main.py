@@ -290,28 +290,34 @@ class DocWindow(QWidget):
 
         #reset listBlocks
         self._listBlocks = []
-        for page in self._doc.pages:
-            for block in page.blocks:
-                #if the filter value is contained in the text, print to console
-                if(self._filter.lower() in block.text.lower()):
-                    print(block.text, page.number)
-                    self._listBlocks.append((block.left, block.top, block.width, block.height, page.number))
-        #doc_window2 = DocWindow2(list, page)
-        #doc_window2.show()
-        if self._listBlocks:
-            self._currPage = self._listBlocks[0][4]
-            self.writeTofile((self._doc.pages)[self._currPage].image, "../test_img/conv_props3.jpg")
-            img = cv2.imread("../test_img/conv_props3.jpg")
-            img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
-            for i in range(len(self._listBlocks)):
-                if(self._listBlocks[i][4] == self._currPage):
-                    img = cv2.rectangle(img, (self._listBlocks[i][0], self._listBlocks[i][1]), (self._listBlocks[i][0] + self._listBlocks[i][2], self._listBlocks[i][1] + self._listBlocks[i][3]), (255, 0, 0), 2)
-                else:
-                    break
-            #img_small = self.resize_keep_aspect_ratio(img, height=1500)
-            cv2.imshow('img', img)
-            #it should display for only 1 frame but it's not
-            cv2.waitKey(1)
+        if self._filter:
+            self.btn.setVisible(True)
+            for page in self._doc.pages:
+                for block in page.blocks:
+                    #if the filter value is contained in the text, print to console
+                    if(self._filter.lower() in block.text.lower()):
+                        print(block.text, page.number)
+                        self._listBlocks.append((block.left, block.top, block.width, block.height, page.number))
+            #doc_window2 = DocWindow2(list, page)
+            #doc_window2.show()
+            if self._listBlocks:
+                self._currPage = self._listBlocks[0][4]
+                self.writeTofile((self._doc.pages)[self._currPage].image, "../test_img/conv_props3.jpg")
+                img = cv2.imread("../test_img/conv_props3.jpg")
+                img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
+                for i in range(len(self._listBlocks)):
+                    if(self._listBlocks[i][4] == self._currPage):
+                        img = cv2.rectangle(img, (self._listBlocks[i][0], self._listBlocks[i][1]), (self._listBlocks[i][0] + self._listBlocks[i][2], self._listBlocks[i][1] + self._listBlocks[i][3]), (255, 0, 0), 2)
+                    else:
+                        break
+                #img_small = self.resize_keep_aspect_ratio(img, height=1500)
+                cv2.imshow('img', img)
+                #it should display for only 1 frame but it's not
+                cv2.waitKey(1)
+        else:
+            print("There was no matches")
+            cv2.destroyAllWindows()
+            self.btn.setVisible(False)
 
 # Probably need to switch from cv2 display to inside a QT window
 class DocWindow2(QWidget):
