@@ -241,7 +241,7 @@ class DocWindow(QWidget):
 
         if width is None and height is None:
             return image
-        elif width is None and h != height:
+        elif width is None:
             ratio = height / h
             new_dim = (int(w * ratio), height)
         else:
@@ -264,7 +264,7 @@ class DocWindow(QWidget):
                     img = cv2.rectangle(img, (self._listBlocks[i][0], self._listBlocks[i][1]), (self._listBlocks[i][0] + self._listBlocks[i][2], self._listBlocks[i][1] + self._listBlocks[i][3]), (255, 0, 0), 2)
                 else:
                     break
-            img_small = self.resize_keep_aspect_ratio(img, height=1400)
+            img_small = self.resize_keep_aspect_ratio(img, height=1500)
             cv2.imshow('img', img_small)
             #it should display for only 1 frame but it's not
             cv2.waitKey(1)
@@ -295,7 +295,7 @@ class DocWindow(QWidget):
                     img = cv2.rectangle(img, (self._listBlocks[i][0], self._listBlocks[i][1]), (self._listBlocks[i][0] + self._listBlocks[i][2], self._listBlocks[i][1] + self._listBlocks[i][3]), (255, 0, 0), 2)
                 else:
                     break
-            img_small = self.resize_keep_aspect_ratio(img, height=2000)
+            img_small = self.resize_keep_aspect_ratio(img, height=1500)
             cv2.imshow('img', img_small)
             #it should display for only 1 frame but it's not
             cv2.waitKey(1)
