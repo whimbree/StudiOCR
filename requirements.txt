@@ -1,6 +1,8 @@
 autopep8==1.5.3
-numpy==1.18.5
+numpy==1.19.0
 opencv-python==4.2.0.34
+pdf2image==1.13.1
+peewee==3.13.3
 Pillow==7.1.2
 pycodestyle==2.6.0
 PySide2==5.15.0
