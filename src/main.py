@@ -172,12 +172,18 @@ class NewDocOptions(QWidget):
         options_layout.addWidget(self.name_edit)
         self.options.setLayout(options_layout)
 
+        self.file_names_label = QLabel("Files Chosen: ")
+        self.listwidget = QListWidget()
+
         self.submit = QPushButton("Process Document")
         self.submit.clicked.connect(self.process_document)
+
 
         layout = QVBoxLayout()
         layout.addWidget(self.choose_file_button)
         layout.addWidget(self.options)
+        layout.addWidget(self.file_names_label)
+        layout.addWidget(self.listwidget)
         layout.addWidget(self.submit, alignment=Qt.AlignBottom)
         self.setLayout(layout)
 
@@ -190,6 +196,10 @@ class NewDocOptions(QWidget):
 
         if file_dialog.exec_():
             self.file_names = file_dialog.selectedFiles()
+
+        for i in range(len(self.file_names)):
+            self.listwidget.insertItem(i, self.file_names[i])
+        #self.listwidget.clicked.connect(self.clicked)
 
     def process_document(self):
         print('Process document clicked')
@@ -252,22 +262,24 @@ class DocWindow(QWidget):
 
     def display_next(self):
         if self._listBlocks:
+            originalValue = self._currPage
             for i in range(len(self._listBlocks)):
                 if (self._listBlocks[i][4] != self._currPage):
                     self._currPage = self._listBlocks[i][4]
                     break
-            self.writeTofile((self._doc.pages)[self._currPage].image, "../test_img/conv_props3.jpg")
-            img = cv2.imread("../test_img/conv_props3.jpg")
-            img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
-            for i in range(len(self._listBlocks)):
-                if(self._listBlocks[i][4] == self._currPage):
-                    img = cv2.rectangle(img, (self._listBlocks[i][0], self._listBlocks[i][1]), (self._listBlocks[i][0] + self._listBlocks[i][2], self._listBlocks[i][1] + self._listBlocks[i][3]), (255, 0, 0), 2)
-                else:
-                    break
-            img_small = self.resize_keep_aspect_ratio(img, height=1500)
-            cv2.imshow('img', img_small)
-            #it should display for only 1 frame but it's not
-            cv2.waitKey(1)
+            if originalValue != self._currPage:
+                self.writeTofile((self._doc.pages)[self._currPage].image, "../test_img/conv_props3.jpg")
+                img = cv2.imread("../test_img/conv_props3.jpg")
+                img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
+                for i in range(len(self._listBlocks)):
+                    if(self._listBlocks[i][4] == self._currPage):
+                        img = cv2.rectangle(img, (self._listBlocks[i][0], self._listBlocks[i][1]), (self._listBlocks[i][0] + self._listBlocks[i][2], self._listBlocks[i][1] + self._listBlocks[i][3]), (255, 0, 0), 2)
+                    else:
+                        break
+                img_small = self.resize_keep_aspect_ratio(img, height=1500)
+                cv2.imshow('img', img_small)
+                #it should display for only 1 frame but it's not
+                cv2.waitKey(1)
 
     def update_filter(self):
         self._filter = self.search_bar.text()
@@ -285,7 +297,7 @@ class DocWindow(QWidget):
                     self._listBlocks.append((block.left, block.top, block.width, block.height, page.number))
         #doc_window2 = DocWindow2(list, page)
         #doc_window2.show()
-        if(self._listBlocks):
+        if self._listBlocks:
             self._currPage = self._listBlocks[0][4]
             self.writeTofile((self._doc.pages)[self._currPage].image, "../test_img/conv_props3.jpg")
             img = cv2.imread("../test_img/conv_props3.jpg")
