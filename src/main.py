@@ -71,7 +71,8 @@ class ListDocuments(QWidget):
 
         self._layout = QVBoxLayout()
 
-        grid = QGridLayout()
+        doc_grid = QGridLayout()
+        ui_box = QHBoxLayout()
 
         self._docButtons = []
 
@@ -79,7 +80,15 @@ class ListDocuments(QWidget):
         self.search_bar.setPlaceholderText("Search for document name...")
         self.search_bar.textChanged.connect(self.update_filter)
 
-        self._layout.addWidget(self.search_bar)
+        self.doc_search = QRadioButton("DOC")
+        self.doc_search.setChecked(True)
+        self.ocr_search = QRadioButton("OCR")
+
+        ui_box.addWidget(self.doc_search)
+        ui_box.addWidget(self.ocr_search)
+        ui_box.addWidget(self.search_bar)
+
+        #self._layout.addWidget(self.search_bar)
 
         # If there are no documents, then the for loop won't create the index variable
         idx = 0
@@ -89,18 +98,19 @@ class ListDocuments(QWidget):
             if len(doc.pages) > 0:
                 img = doc.pages[0].image
 
-            doc_button = SingleDocumentButton(name, img)
+            doc_button = SingleDocumentButton(name, img, doc)
             doc_button.pressed.connect(
                 lambda doc=doc: self.create_doc_window(doc))
-            grid.addWidget(doc_button, idx / 4, idx % 4, 1, 1)
+            doc_grid.addWidget(doc_button, idx / 4, idx % 4, 1, 1)
             self._docButtons.append(doc_button)
 
-        new_doc_button = SingleDocumentButton('Add New Document', None)
+        new_doc_button = SingleDocumentButton('Add New Document', None, None)
         new_doc_button.pressed.connect(
             lambda: self.create_new_doc_window())
-        grid.addWidget(new_doc_button, (idx+1) / 4, (idx+1) % 4, 1, 1)
+        doc_grid.addWidget(new_doc_button, (idx+1) / 4, (idx+1) % 4, 1, 1)
 
-        self._layout.addLayout(grid)
+        self._layout.addLayout(ui_box)
+        self._layout.addLayout(doc_grid)
 
         self.setLayout(self._layout)
 
@@ -115,13 +125,21 @@ class ListDocuments(QWidget):
     def update_filter(self):
         self._filter = self.search_bar.text()
 
-        for button in self._docButtons:
-            if(self._filter.lower() in button.name.lower()):
-                print(self._filter)
-                print(button.name)
-                button.show()
-            else:
-                button.hide()
+        if(self.doc_search.isChecked()):
+            for button in self._docButtons:
+                if(self._filter.lower() in button.name.lower()):
+                    button.show()
+                else:
+                    button.hide()
+        elif(self.ocr_search.isChecked()):
+            for button in self._docButtons:
+                for page in button.doc.pages:
+                    for block in page.blocks:
+                        if(self._filter.lower() in block.text.lower()):
+                            button.show()
+                            break
+                        else:
+                            button.hide()
 
 
 
@@ -277,10 +295,11 @@ class DocWindow2(QWidget):
         pixmap = QPixmap.fromImage(qimg)
 
 class SingleDocumentButton(QToolButton):
-    def __init__(self, name, image, *args, **kwargs):
+    def __init__(self, name, image, doc, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
         self._name = name
+        self._doc = doc
 
         self.setFixedSize(160, 160)
 
@@ -302,6 +321,14 @@ class SingleDocumentButton(QToolButton):
     @name.setter
     def name(self, name):
         self._name = name
+
+    @property
+    def doc(self):
+        return self._doc
+
+    @doc.setter
+    def doc(self, doc):
+        self._doc = doc
 
 
 class DocumentThumbnail(QLabel):
