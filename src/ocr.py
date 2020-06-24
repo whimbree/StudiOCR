@@ -50,11 +50,13 @@ class OcrProcess():
                                         conf=page_data['conf'][i], text=page_data['text'][i])
         return self.doc_id
 
+# Usage
 #ocr = OcrProcess('test6')
 #ocr.process_image('../src/OCR/einstein_quote.jpg')
 #ocr.process_image('../src/OCR/generatedtext.jpg')
 #ocr.process_image('../src/OCR/handwritten_digits.jpg')
 #ocr.commit_data()
+
 
 
 # Utility function to rescale an image while maintaining aspect ratio, is this the right place for it?
