@@ -274,10 +274,8 @@ class DocWindow(QWidget):
                 for i in range(len(self._listBlocks)):
                     if(self._listBlocks[i][4] == self._currPage):
                         img = cv2.rectangle(img, (self._listBlocks[i][0], self._listBlocks[i][1]), (self._listBlocks[i][0] + self._listBlocks[i][2], self._listBlocks[i][1] + self._listBlocks[i][3]), (255, 0, 0), 2)
-                    else:
-                        break
-                img_small = self.resize_keep_aspect_ratio(img, height=1500)
-                cv2.imshow('img', img_small)
+                #img_small = self.resize_keep_aspect_ratio(img, height=1500)
+                cv2.imshow('img', img)
                 #it should display for only 1 frame but it's not
                 cv2.waitKey(1)
 
@@ -293,7 +291,7 @@ class DocWindow(QWidget):
             for block in page.blocks:
                 #if the filter value is contained in the text, print to console
                 if(self._filter.lower() in block.text.lower()):
-                    print(block.text)
+                    print(block.text, page.number)
                     self._listBlocks.append((block.left, block.top, block.width, block.height, page.number))
         #doc_window2 = DocWindow2(list, page)
         #doc_window2.show()
@@ -307,8 +305,8 @@ class DocWindow(QWidget):
                     img = cv2.rectangle(img, (self._listBlocks[i][0], self._listBlocks[i][1]), (self._listBlocks[i][0] + self._listBlocks[i][2], self._listBlocks[i][1] + self._listBlocks[i][3]), (255, 0, 0), 2)
                 else:
                     break
-            img_small = self.resize_keep_aspect_ratio(img, height=1500)
-            cv2.imshow('img', img_small)
+            #img_small = self.resize_keep_aspect_ratio(img, height=1500)
+            cv2.imshow('img', img)
             #it should display for only 1 frame but it's not
             cv2.waitKey(1)
 
