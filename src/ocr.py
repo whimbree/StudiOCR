@@ -16,6 +16,7 @@ class OcrProcess():
     def __init__(self, name: str):
         self._name = name
         self._data = list()
+        self.doc_id = None
 
     def process_image(self, image_filepath: str):
         # Maybe further postprocessing is needed for a better result
@@ -36,6 +37,7 @@ class OcrProcess():
         with db.atomic():
             # Create a new entry for the document to link the pages and boxes to
             doc = OcrDocument.create(name=self._name)
+            self.doc_id = doc.id
             for i, (page_data, image_file) in enumerate(self._data):
                 page = OcrPage.create(
                     number=i, image=image_file, document=doc.id)
@@ -46,10 +48,11 @@ class OcrProcess():
                         OcrBlock.create(page=page.id, left=page_data['left'][i], top=page_data['top'][i],
                                         width=page_data['width'][i], height=page_data['height'][i],
                                         conf=page_data['conf'][i], text=page_data['text'][i])
+        return self.doc_id
 
 
 # Usage
-# ocr = OcrProcess('test')
+# ocr = OcrProcess('test5')
 # ocr.process_image('../test_img/conv_props.jpg')
 # ocr.commit_data()
 
