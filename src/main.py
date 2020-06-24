@@ -264,9 +264,12 @@ class DocWindow(QWidget):
         if self._listBlocks:
             originalValue = self._currPage
             for i in range(len(self._listBlocks)):
-                if (self._listBlocks[i][4] != self._currPage):
+                if (self._listBlocks[i][4] > self._currPage):
                     self._currPage = self._listBlocks[i][4]
                     break
+            else:
+                print("Looping back around")
+                self._currPage = self._listBlocks[0][4]
             if originalValue != self._currPage:
                 self.writeTofile((self._doc.pages)[self._currPage].image, "../test_img/conv_props3.jpg")
                 img = cv2.imread("../test_img/conv_props3.jpg")
