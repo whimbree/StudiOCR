@@ -471,20 +471,13 @@ class DocWindow(QWidget):
             #cv2.imshow('img', img)
             #it should display for only 1 frame but it's not
             #cv2.waitKey(1)
+        else:
+            self.btn.setVisible(False)
+            self.label.setVisible(False)
     #else:
      #   print("There was no matches")
       #  cv2.destroyAllWindows()
        # self.btn.setVisible(False)
-# Probably need to switch from cv2 display to inside a QT window
-
-
-class DocWindow2(QWidget):
-    def __init__(self, matchesCoordinates, page, input,  *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        self.setWindowTitle(input)
-        qimg = QImage.fromData(page.image)
-        pixmap = QPixmap.fromImage(qimg)
-
 
 class SingleDocumentButton(QToolButton):
     def __init__(self, name, image, doc, *args, **kwargs):
