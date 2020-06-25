@@ -266,6 +266,7 @@ class NewDocWindow(QWidget):
         layout = QHBoxLayout()
         layout.addWidget(self.settings)
         # TODO: Create some kind of preview for the selected image files
+        # ^Done with a "Files Chosen" section down below
         self.setLayout(layout)
 
 
@@ -368,6 +369,10 @@ class DocWindow(QWidget):
         self.search_bar.textChanged.connect(self.update_filter)
         layout.addWidget(self.search_bar, alignment=Qt.AlignTop)
 
+        self.im = QPixmap()
+        self.label = QLabel()
+        layout.addWidget(self.label)
+
         self.btn = QPushButton("Next Page")
         self.btn.clicked.connect(self.display_next)
         layout.addWidget(self.btn)
@@ -375,7 +380,6 @@ class DocWindow(QWidget):
         if (self._filter):
             self.search_bar.setText(self._filter)
             self.update_filter()
-
         self.setLayout(layout)
 
     # reference for writeTofile: https://pynative.com/python-sqlite-blob-insert-and-retrieve-digital-data/
@@ -419,46 +423,58 @@ class DocWindow(QWidget):
                         img = cv2.rectangle(img, (self._listBlocks[i][0], self._listBlocks[i][1]), (
                             self._listBlocks[i][0] + self._listBlocks[i][2], self._listBlocks[i][1] + self._listBlocks[i][3]), (255, 0, 0), 2)
                 #img_small = self.resize_keep_aspect_ratio(img, height=1500)
-                cv2.imshow('img', img)
+                #self.label.resize(0,0)
+                cv2.imwrite("../test_img/conv_props3.jpg",img)
+                self.im = QPixmap("../test_img/conv_props3.jpg")
+                #self.label.resize(self.im.width(), self.im.height())
+                self.label.setPixmap(self.im)
                 # it should display for only 1 frame but it's not
                 cv2.waitKey(1)
 
     def update_filter(self):
         self._filter = self.search_bar.text()
-
+        if not self._filter:
+            self.btn.setVisible(False)
+            self.label.setVisible(False)
+            return
         # filter through each block in the pages of the document
         # pick the page with the first matching block to display
 
         # reset listBlocks
         self._listBlocks = []
-        if self._filter:
-            self.btn.setVisible(True)
-            for page in self._doc.pages:
-                for block in page.blocks:
-                    #if the filter value is contained in the text, print to console
-                    if(self._filter.lower() in block.text.lower()):
-                        print(block.text, page.number)
-                        self._listBlocks.append((block.left, block.top, block.width, block.height, page.number))
-            #doc_window2 = DocWindow2(list, page)
-            #doc_window2.show()
-            if self._listBlocks:
-                self._currPage = self._listBlocks[0][4]
-                self.writeTofile((self._doc.pages)[self._currPage].image, "../test_img/conv_props3.jpg")
-                img = cv2.imread("../test_img/conv_props3.jpg")
-                img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
-                for i in range(len(self._listBlocks)):
-                    if(self._listBlocks[i][4] == self._currPage):
-                        img = cv2.rectangle(img, (self._listBlocks[i][0], self._listBlocks[i][1]), (self._listBlocks[i][0] + self._listBlocks[i][2], self._listBlocks[i][1] + self._listBlocks[i][3]), (255, 0, 0), 2)
-                    else:
-                        break
-                #img_small = self.resize_keep_aspect_ratio(img, height=1500)
-                cv2.imshow('img', img)
-                #it should display for only 1 frame but it's not
-                cv2.waitKey(1)
-        else:
-            print("There was no matches")
-            cv2.destroyAllWindows()
-            self.btn.setVisible(False)
+        self.btn.setVisible(True)
+        for page in self._doc.pages:
+            for block in page.blocks:
+                #if the filter value is contained in the text, print to console
+                if(self._filter.lower() in block.text.lower()):
+                    print(block.text, page.number)
+                    self._listBlocks.append((block.left, block.top, block.width, block.height, page.number))
+        #doc_window2 = DocWindow2(list, page)
+        #doc_window2.show()
+        if self._listBlocks:
+            self._currPage = self._listBlocks[0][4]
+            self.writeTofile((self._doc.pages)[self._currPage].image, "../test_img/conv_props3.jpg")
+            img = cv2.imread("../test_img/conv_props3.jpg")
+            img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
+            for i in range(len(self._listBlocks)):
+                if(self._listBlocks[i][4] == self._currPage):
+                    img = cv2.rectangle(img, (self._listBlocks[i][0], self._listBlocks[i][1]), (self._listBlocks[i][0] + self._listBlocks[i][2], self._listBlocks[i][1] + self._listBlocks[i][3]), (255, 0, 0), 2)
+                else:
+                    break
+            #self.label.clear()
+            cv2.imwrite("../test_img/conv_props3.jpg",img)
+            self.im = QPixmap("../test_img/conv_props3.jpg")
+            #self.label.resize(self.im.width(), self.im.height())
+            self.label.setPixmap(self.im)
+            self.label.setVisible(True)
+            #img_small = self.resize_keep_aspect_ratio(img, height=1500)
+            #cv2.imshow('img', img)
+            #it should display for only 1 frame but it's not
+            #cv2.waitKey(1)
+    #else:
+     #   print("There was no matches")
+      #  cv2.destroyAllWindows()
+       # self.btn.setVisible(False)
 # Probably need to switch from cv2 display to inside a QT window
 
 
