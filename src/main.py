@@ -476,14 +476,17 @@ class DocWindow(QWidget):
             #self.label.resize(self.im.width(), self.im.height())
             self.im = img.scaled(2550 / 5, 3300 / 5, Qt.KeepAspectRatio, Qt.SmoothTransformation)
             self.label.setPixmap(self.im)
-            self.label.setVisible(True)
+            
             #img_small = self.resize_keep_aspect_ratio(img, height=1500)
             #cv2.imshow('img', img)
             #it should display for only 1 frame but it's not
             #cv2.waitKey(1)
         else:
-            self.btn.setVisible(False)
-            self.label.setVisible(False)
+            img = QImage.fromData(self._doc.pages[self._currPage].image)
+            qp = QPixmap.fromImage(img)
+            self.im = qp.scaled(2550 / 5, 3300 / 5, Qt.KeepAspectRatio, Qt.SmoothTransformation)
+            self.label.setPixmap(self.im)
+
     #else:
      #   print("There was no matches")
       #  cv2.destroyAllWindows()
