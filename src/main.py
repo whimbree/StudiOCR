@@ -224,7 +224,10 @@ class ListDocuments(QWidget):
         # layout.addWidget(doc_button, self.idx / 4, self.idx % 4, 1, 1)
 
     def create_doc_window(self, doc):
-        self.doc_window = DocWindow(doc)
+        if(self.ocr_search.isChecked()):
+            self.doc_window = DocWindow(doc, self._filter)
+        else:
+            self.doc_window = DocWindow(doc)
         self.doc_window.show()
 
     def create_new_doc_window(self):
@@ -342,14 +345,14 @@ class NewDocOptions(QWidget):
 
 
 class DocWindow(QWidget):
-    def __init__(self, doc, *args, **kwargs):
+    def __init__(self, doc, filter='', *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.setWindowTitle(doc.name)
         # TODO: Implement
 
         self._doc = doc
 
-        self._filter = ''
+        self._filter = filter
 
         self._currPage = (self._doc.pages)[0]
 
@@ -363,14 +366,15 @@ class DocWindow(QWidget):
         self.search_bar.setPlaceholderText("Search through notes...")
 
         self.search_bar.textChanged.connect(self.update_filter)
-
         layout.addWidget(self.search_bar, alignment=Qt.AlignTop)
 
         self.btn = QPushButton("Next Page")
-
         self.btn.clicked.connect(self.display_next)
-
         layout.addWidget(self.btn)
+
+        if (self._filter):
+            self.search_bar.setText(self._filter)
+            self.update_filter()
 
         self.setLayout(layout)
 
