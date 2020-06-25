@@ -351,12 +351,13 @@ class DocWindow(QWidget):
         self.setWindowTitle(doc.name)
         # TODO: Implement
 
+
+        self.setFixedWidth(500)
+        self.setFixedHeight(800)
+
         self._doc = doc
-
         self._filter = filter
-
         self._currPage = (self._doc.pages)[0]
-
         self._listBlocks = []
 
         layout = QVBoxLayout()
@@ -369,17 +370,23 @@ class DocWindow(QWidget):
         self.search_bar.textChanged.connect(self.update_filter)
         layout.addWidget(self.search_bar, alignment=Qt.AlignTop)
 
-        self.im = QPixmap()
+
         self.label = QLabel()
+        if (self._filter):
+            self.search_bar.setText(self._filter)
+            self.update_filter()
+            self.im = QPixmap()
+        else:
+            img = QImage.fromData(self._doc.pages[0].image)
+            qp = QPixmap.fromImage(img)
+            self.im = qp.scaled(2550 / 5, 3300 / 5, Qt.KeepAspectRatio, Qt.SmoothTransformation)
+            self.label.setPixmap(self.im)
         layout.addWidget(self.label)
 
         self.btn = QPushButton("Next Page")
         self.btn.clicked.connect(self.display_next)
         layout.addWidget(self.btn)
 
-        if (self._filter):
-            self.search_bar.setText(self._filter)
-            self.update_filter()
         self.setLayout(layout)
 
     # reference for writeTofile: https://pynative.com/python-sqlite-blob-insert-and-retrieve-digital-data/
@@ -434,15 +441,17 @@ class DocWindow(QWidget):
     def update_filter(self):
         self._filter = self.search_bar.text()
         if not self._filter:
-            self.btn.setVisible(False)
-            self.label.setVisible(False)
+            print(self._currPage)
+            img = QImage.fromData(self._doc.pages[0].image)
+            qp = QPixmap.fromImage(img)
+            self.im = qp.scaled(2550 / 5, 3300 / 5, Qt.KeepAspectRatio, Qt.SmoothTransformation)
+            self.label.setPixmap(self.im)
             return
         # filter through each block in the pages of the document
         # pick the page with the first matching block to display
 
         # reset listBlocks
         self._listBlocks = []
-        self.btn.setVisible(True)
         for page in self._doc.pages:
             for block in page.blocks:
                 #if the filter value is contained in the text, print to console
@@ -463,8 +472,9 @@ class DocWindow(QWidget):
                     break
             #self.label.clear()
             cv2.imwrite("../test_img/conv_props3.jpg",img)
-            self.im = QPixmap("../test_img/conv_props3.jpg")
+            img = QPixmap("../test_img/conv_props3.jpg")
             #self.label.resize(self.im.width(), self.im.height())
+            self.im = img.scaled(2550 / 5, 3300 / 5, Qt.KeepAspectRatio, Qt.SmoothTransformation)
             self.label.setPixmap(self.im)
             self.label.setVisible(True)
             #img_small = self.resize_keep_aspect_ratio(img, height=1500)
