@@ -29,18 +29,30 @@ class ImagePipeline:
         self.pipeline = OrderedDict([])
 
     @property
+<<<<<<< Updated upstream
     def pipeline(self) -> list:
+=======
+    def pipeline(self) -> OrderedDict:
+>>>>>>> Stashed changes
         """Getter for pipeline"""
         return self.__pipeline
 
     @pipeline.setter
     def pipeline(self, new_pipeline: ImagePipeline) -> None:
         """Setter for pipeline"""
+<<<<<<< Updated upstream
         self.__pipeline = copy.deepcopy(x=new_pipeline)
 
     def size(self) -> int:
         """Number of steps in pipeline"""
         return len(self.pipeline)
+=======
+        self.__pipeline = copy.deepcopy(x=new_pipeline.pipeline)
+
+    def size(self) -> int:
+        """Number of steps in pipeline"""
+        return len(list(self.__pipeline.keys()))
+>>>>>>> Stashed changes
 
     def empty(self) -> bool:
         """Check if any steps exist in pipeline"""
