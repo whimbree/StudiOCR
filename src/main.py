@@ -7,6 +7,7 @@ from multiprocessing import Process, Queue, Pipe
 import sys
 import random
 import cv2
+import numpy as np
 
 from ocr import *
 
@@ -399,20 +400,21 @@ class DocWindow(QWidget):
         layout.addWidget(self.search_bar, alignment=Qt.AlignTop)
 
         self.label = QLabel()
-        #if filter passed through from main window, set the search bar text and update window
+        # if filter passed through from main window, set the search bar text and update window
         if (self._filter):
             self.search_bar.setText(self._filter)
             self.im = QPixmap()
             self.update_filter()
-        #display original image of first page
+        # display original image of first page
         else:
             img = QImage.fromData(self._doc.pages[0].image)
             qp = QPixmap.fromImage(img)
-            self.im = qp.scaled(2550 / 5, 3300 / 5, Qt.KeepAspectRatio, Qt.SmoothTransformation)
+            self.im = qp.scaled(2550 / 5, 3300 / 5,
+                                Qt.KeepAspectRatio, Qt.SmoothTransformation)
             self.label.setPixmap(self.im)
         layout.addWidget(self.label)
 
-        #create button group for prev and next page buttons
+        # create button group for prev and next page buttons
         self.next_page_button = QPushButton("Next Page")
         self.next_page_button.clicked.connect(self.next_page)
         self.prev_page_button = QPushButton("Previous Page")
@@ -451,7 +453,7 @@ class DocWindow(QWidget):
         If current page is the last page, the page will not increment
         :return: NONE
         """
-        #if on last page, make current page the first page
+        # if on last page, make current page the first page
         if(self._currPage + 1 != len(self._doc.pages)):
             self._currPage += 1
         self.update_image()
@@ -479,33 +481,38 @@ class DocWindow(QWidget):
         Function that updates the rectangles on the image based on self._currPage and self._filter
         :return: NONE
         """
-        #if there is no search criteria, display original image of current page
+        # if there is no search criteria, display original image of current page
         if not self._filter:
             img = QImage.fromData(self._doc.pages[self._currPage].image)
             qp = QPixmap.fromImage(img)
-            self.im = qp.scaled(2550 / 5, 3300 / 5, Qt.KeepAspectRatio, Qt.SmoothTransformation)
+            self.im = qp.scaled(2550 / 5, 3300 / 5,
+                                Qt.KeepAspectRatio, Qt.SmoothTransformation)
             self.label.setPixmap(self.im)
         else:
             # reset listBlocks
             self._listBlocks = []
-            #search each block in the current page to see if it contains the search criteria (filter)
+            # search each block in the current page to see if it contains the search criteria (filter)
             for block in self._doc.pages[self._currPage].blocks:
-                #if the filter value is contained in the block text, add block to list
+                # if the filter value is contained in the block text, add block to list
                 if(self._filter.lower() in block.text.lower()):
                     print(block.text, block.page_id)
                     self._listBlocks.append(block)
 
-            #for each block containing the search criteria, draw rectangles on the image
+            # for each block containing the search criteria, draw rectangles on the image
             if self._listBlocks:
-                self.writeTofile((self._doc.pages)[self._currPage].image, "../test_img/conv_props3.jpg")
-                img = cv2.imread("../test_img/conv_props3.jpg")
+                # Convert image from database into numpy array for cv2
+                nparr = np.frombuffer((self._doc.pages)[
+                    self._currPage].image, np.uint8)
+                # Convert numpy array into cv2 object for processing
+                img = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
                 img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
                 for block in self._listBlocks:
-                    #set start and end point of rectangle
+                    # set start and end point of rectangle
                     start_point = (block.left, block.top)
-                    end_point = (block.left + block.width, block.top + block.height)
+                    end_point = (block.left + block.width,
+                                 block.top + block.height)
                     color = (0, 0, 0)
-                    #set color of rectangle based on confidence level of OCR
+                    # set color of rectangle based on confidence level of OCR
                     if block.conf >= 80:
                         color = (0, 255, 0)
                     elif (block.conf < 80 and block.conf >= 40):
@@ -513,18 +520,22 @@ class DocWindow(QWidget):
                     else:
                         color = (0, 0, 255)
                     img = cv2.rectangle(img, start_point, end_point, color, 2)
-                cv2.imwrite("../test_img/conv_props3.jpg",img)
 
-                #change image displayed in window
-                img = QPixmap("../test_img/conv_props3.jpg")
-                self.im = img.scaled(2550 / 5, 3300 / 5, Qt.KeepAspectRatio, Qt.SmoothTransformation)
+                # convert cv2 object to QImage
+                qimg = QImage(
+                    img, img.shape[1], img.shape[0], img.shape[1]*3, QImage.Format_RGB888)
+                img_pixmap = QPixmap.fromImage(qimg)
+                self.im = img_pixmap.scaled(
+                    2550 / 5, 3300 / 5, Qt.KeepAspectRatio, Qt.SmoothTransformation)
                 self.label.setPixmap(self.im)
-            #no blocks found, display original image
+            # no blocks found, display original image
             else:
                 img = QImage.fromData(self._doc.pages[self._currPage].image)
                 qp = QPixmap.fromImage(img)
-                self.im = qp.scaled(2550 / 5, 3300 / 5, Qt.KeepAspectRatio, Qt.SmoothTransformation)
+                self.im = qp.scaled(
+                    2550 / 5, 3300 / 5, Qt.KeepAspectRatio, Qt.SmoothTransformation)
                 self.label.setPixmap(self.im)
+
 
 class SingleDocumentButton(QToolButton):
     def __init__(self, name, image, doc, *args, **kwargs):
@@ -539,7 +550,7 @@ class SingleDocumentButton(QToolButton):
 
         label = QLabel(name)
         if image is not None:
-            thumbnail = DocumentThumbnail(image, 140)
+            thumbnail = DocumentThumbnail(image)
             layout.addWidget(thumbnail, alignment=Qt.AlignCenter)
 
         layout.addWidget(label, alignment=Qt.AlignCenter)
@@ -564,7 +575,7 @@ class SingleDocumentButton(QToolButton):
 
 
 class DocumentThumbnail(QLabel):
-    def __init__(self, image, height, *args, **kwargs):
+    def __init__(self, image, *args, **kwargs):
         super().__init__(*args, **kwargs)
         qimg = QImage.fromData(image)
         self.pixmap = QPixmap.fromImage(qimg)
