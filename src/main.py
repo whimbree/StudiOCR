@@ -282,11 +282,26 @@ class NewDocOptions(QWidget):
         self.choose_file_button.clicked.connect(self.choose_files)
 
         self.options = QGroupBox("Options")
-        self.name_label = QLabel("Document Name: ")
+        self.name_label = QLabel("Document Name:")
         self.name_edit = QLineEdit()
+        self.best_vs_fast = QLabel("Best Model or Fast Model:")
+        self.best_vs_fast_options = QComboBox()
+        self.best_vs_fast_options.addItem("Best")
+        self.best_vs_fast_options.addItem("Fast")
+        self.psm_label = QLabel("PSM Number")
+        self.psm_num = QSpinBox()
+        self.psm_num.setRange(1, 10)
+        self.info_button = QPushButton()
+        self.info_button.setIcon(QIcon("../images/info_icon.png"))
+        self.info_button.clicked.connect(self.display_info)
         options_layout = QVBoxLayout()
         options_layout.addWidget(self.name_label)
         options_layout.addWidget(self.name_edit)
+        options_layout.addWidget(self.best_vs_fast)
+        options_layout.addWidget(self.best_vs_fast_options)
+        options_layout.addWidget(self.psm_label)
+        options_layout.addWidget(self.psm_num)
+        options_layout.addWidget(self.info_button, alignment=Qt.AlignRight)
         self.options.setLayout(options_layout)
 
         self.file_names_label = QLabel("Files Chosen: ")
@@ -343,6 +358,19 @@ class NewDocOptions(QWidget):
         else:
             self.new_doc_cb(name, self.file_names)
             self.close_cb()
+
+    def display_info(self):
+        print("Info clicked")
+        info = QMessageBox()
+        print(self.size())
+        info.setFixedSize(self.size())
+        info.setWindowTitle("OCR Information")
+        info.setIcon(QMessageBox.Information)
+        info.setInformativeText("Best vs Fast:\nBest is more accurate, but takes longer to process\nPSM Values:\n"
+                             "0 - Orientation and script detection only")
+        info.exec_()
+
+
 
 
 class DocWindow(QWidget):
