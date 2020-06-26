@@ -533,16 +533,15 @@ class DocumentThumbnail(QLabel):
     def __init__(self, image, height, *args, **kwargs):
         super().__init__(*args, **kwargs)
         qimg = QImage.fromData(image)
-        self.height = height
-        self.width = int((self.height / qimg.height()) * qimg.width())
         self.pixmap = QPixmap.fromImage(qimg)
 
-    def paintEvent(self, event: QPaintEvent):
-        painter = QPainter(self)
-        painter.drawPixmap(event.rect(), self.pixmap)
+        self.setPixmap(self.pixmap.scaled(
+            self.size(), Qt.KeepAspectRatio, Qt.SmoothTransformation))
 
-    def sizeHint(self):
-        return QSize(self.width, self.height)
+    def resizeEvent(self, e: QResizeEvent):
+        self.setPixmap(self.pixmap.scaled(
+            self.size(), Qt.KeepAspectRatio, Qt.SmoothTransformation))
+        super().resizeEvent(e)
 
 
 if __name__ == "__main__":
