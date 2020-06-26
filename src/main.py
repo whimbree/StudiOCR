@@ -347,35 +347,36 @@ class NewDocOptions(QWidget):
 
 class DocWindow(QWidget):
     def __init__(self, doc, filter='', *args, **kwargs):
+        """
+        Constructor method
+        :param doc: OCRDocument
+        :param filter: Filter from main window
+        """
         super().__init__(*args, **kwargs)
         self.setWindowTitle(doc.name)
-        # TODO: Implement
-
 
         self.setFixedWidth(500)
         self.setFixedHeight(800)
 
         self._doc = doc
         self._filter = filter
-        self._currPage = (self._doc.pages)[0]
+        self._currPage = 0
         self._listBlocks = []
 
         layout = QVBoxLayout()
 
-        # search bar
         self.search_bar = QLineEdit()
-
         self.search_bar.setPlaceholderText("Search through notes...")
-
         self.search_bar.textChanged.connect(self.update_filter)
         layout.addWidget(self.search_bar, alignment=Qt.AlignTop)
 
-
         self.label = QLabel()
+        #if filter passed through from main window, set the search bar text and update window
         if (self._filter):
             self.search_bar.setText(self._filter)
-            self.update_filter()
             self.im = QPixmap()
+            self.update_filter()
+        #display original image of first page
         else:
             img = QImage.fromData(self._doc.pages[0].image)
             qp = QPixmap.fromImage(img)
@@ -383,10 +384,16 @@ class DocWindow(QWidget):
             self.label.setPixmap(self.im)
         layout.addWidget(self.label)
 
-        self.btn = QPushButton("Next Page")
-        self.btn.clicked.connect(self.display_next)
-        layout.addWidget(self.btn)
+        #create button group for prev and next page buttons
+        self.next_page_button = QPushButton("Next Page")
+        self.next_page_button.clicked.connect(self.next_page)
+        self.prev_page_button = QPushButton("Previous Page")
+        self.prev_page_button.clicked.connect(self.prev_page)
+        button_group = QHBoxLayout()
+        button_group.addWidget(self.prev_page_button)
+        button_group.addWidget(self.next_page_button)
 
+        layout.addLayout(button_group)
         self.setLayout(layout)
 
     # reference for writeTofile: https://pynative.com/python-sqlite-blob-insert-and-retrieve-digital-data/
@@ -410,87 +417,86 @@ class DocWindow(QWidget):
 
         return cv2.resize(image, new_dim, interpolation=inter)
 
-    def display_next(self):
-        if self._listBlocks:
-            originalValue = self._currPage
-            for i in range(len(self._listBlocks)):
-                if (self._listBlocks[i][4] > self._currPage):
-                    self._currPage = self._listBlocks[i][4]
-                    break
-            else:
-                print("Looping back around")
-                self._currPage = self._listBlocks[0][4]
-            if originalValue != self._currPage:
-                self.writeTofile((self._doc.pages)[
-                                 self._currPage].image, "../test_img/conv_props3.jpg")
-                img = cv2.imread("../test_img/conv_props3.jpg")
-                img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
-                for i in range(len(self._listBlocks)):
-                    if(self._listBlocks[i][4] == self._currPage):
-                        img = cv2.rectangle(img, (self._listBlocks[i][0], self._listBlocks[i][1]), (
-                            self._listBlocks[i][0] + self._listBlocks[i][2], self._listBlocks[i][1] + self._listBlocks[i][3]), (255, 0, 0), 2)
-                #img_small = self.resize_keep_aspect_ratio(img, height=1500)
-                #self.label.resize(0,0)
-                cv2.imwrite("../test_img/conv_props3.jpg",img)
-                self.im = QPixmap("../test_img/conv_props3.jpg")
-                #self.label.resize(self.im.width(), self.im.height())
-                self.label.setPixmap(self.im)
-                # it should display for only 1 frame but it's not
-                cv2.waitKey(1)
+    def next_page(self):
+        """
+        Increment the current page number if the next page button is pressed.
+        If current page is the last page, the page will not increment
+        :return: NONE
+        """
+        #if on last page, make current page the first page
+        if(self._currPage + 1 != len(self._doc.pages)):
+            self._currPage += 1
+        self.update_image()
+
+    def prev_page(self):
+        """
+        Decrement the current page number if the next page button is pressed.
+        If current page is the first page, the page will not decrement
+        :return: NONE
+        """
+        if(self._currPage != 0):
+            self._currPage -= 1
+        self.update_image()
 
     def update_filter(self):
+        """
+        Updates the filter criteria as the text in the search bar changes
+        :return: NONE
+        """
         self._filter = self.search_bar.text()
-        if not self._filter:
-            print(self._currPage)
-            img = QImage.fromData(self._doc.pages[0].image)
-            qp = QPixmap.fromImage(img)
-            self.im = qp.scaled(2550 / 5, 3300 / 5, Qt.KeepAspectRatio, Qt.SmoothTransformation)
-            self.label.setPixmap(self.im)
-            return
-        # filter through each block in the pages of the document
-        # pick the page with the first matching block to display
+        self.update_image()
 
-        # reset listBlocks
-        self._listBlocks = []
-        for page in self._doc.pages:
-            for block in page.blocks:
-                #if the filter value is contained in the text, print to console
-                if(self._filter.lower() in block.text.lower()):
-                    print(block.text, page.number)
-                    self._listBlocks.append((block.left, block.top, block.width, block.height, page.number))
-        #doc_window2 = DocWindow2(list, page)
-        #doc_window2.show()
-        if self._listBlocks:
-            self._currPage = self._listBlocks[0][4]
-            self.writeTofile((self._doc.pages)[self._currPage].image, "../test_img/conv_props3.jpg")
-            img = cv2.imread("../test_img/conv_props3.jpg")
-            img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
-            for i in range(len(self._listBlocks)):
-                if(self._listBlocks[i][4] == self._currPage):
-                    img = cv2.rectangle(img, (self._listBlocks[i][0], self._listBlocks[i][1]), (self._listBlocks[i][0] + self._listBlocks[i][2], self._listBlocks[i][1] + self._listBlocks[i][3]), (255, 0, 0), 2)
-                else:
-                    break
-            #self.label.clear()
-            cv2.imwrite("../test_img/conv_props3.jpg",img)
-            img = QPixmap("../test_img/conv_props3.jpg")
-            #self.label.resize(self.im.width(), self.im.height())
-            self.im = img.scaled(2550 / 5, 3300 / 5, Qt.KeepAspectRatio, Qt.SmoothTransformation)
-            self.label.setPixmap(self.im)
-            
-            #img_small = self.resize_keep_aspect_ratio(img, height=1500)
-            #cv2.imshow('img', img)
-            #it should display for only 1 frame but it's not
-            #cv2.waitKey(1)
-        else:
+    def update_image(self):
+        """
+        Function that updates the rectangles on the image based on self._currPage and self._filter
+        :return: NONE
+        """
+        #if there is no search criteria, display original image of current page
+        if not self._filter:
             img = QImage.fromData(self._doc.pages[self._currPage].image)
             qp = QPixmap.fromImage(img)
             self.im = qp.scaled(2550 / 5, 3300 / 5, Qt.KeepAspectRatio, Qt.SmoothTransformation)
             self.label.setPixmap(self.im)
+        else:
+            # reset listBlocks
+            self._listBlocks = []
+            #search each block in the current page to see if it contains the search criteria (filter)
+            for block in self._doc.pages[self._currPage].blocks:
+                #if the filter value is contained in the block text, add block to list
+                if(self._filter.lower() in block.text.lower()):
+                    print(block.text, block.page_id)
+                    self._listBlocks.append(block)
 
-    #else:
-     #   print("There was no matches")
-      #  cv2.destroyAllWindows()
-       # self.btn.setVisible(False)
+            #for each block containing the search criteria, draw rectangles on the image
+            if self._listBlocks:
+                self.writeTofile((self._doc.pages)[self._currPage].image, "../test_img/conv_props3.jpg")
+                img = cv2.imread("../test_img/conv_props3.jpg")
+                img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
+                for block in self._listBlocks:
+                    #set start and end point of rectangle
+                    start_point = (block.left, block.top)
+                    end_point = (block.left + block.width, block.top + block.height)
+                    color = (0, 0, 0)
+                    #set color of rectangle based on confidence level of OCR
+                    if block.conf >= 80:
+                        color = (0, 255, 0)
+                    elif (block.conf < 80 and block.conf >= 40):
+                        color = (255, 0, 0)
+                    else:
+                        color = (0, 0, 255)
+                    img = cv2.rectangle(img, start_point, end_point, color, 2)
+                cv2.imwrite("../test_img/conv_props3.jpg",img)
+
+                #change image displayed in window
+                img = QPixmap("../test_img/conv_props3.jpg")
+                self.im = img.scaled(2550 / 5, 3300 / 5, Qt.KeepAspectRatio, Qt.SmoothTransformation)
+                self.label.setPixmap(self.im)
+            #no blocks found, display original image
+            else:
+                img = QImage.fromData(self._doc.pages[self._currPage].image)
+                qp = QPixmap.fromImage(img)
+                self.im = qp.scaled(2550 / 5, 3300 / 5, Qt.KeepAspectRatio, Qt.SmoothTransformation)
+                self.label.setPixmap(self.im)
 
 class SingleDocumentButton(QToolButton):
     def __init__(self, name, image, doc, *args, **kwargs):
