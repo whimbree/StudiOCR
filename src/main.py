@@ -11,6 +11,7 @@ import numpy as np
 from ocr import OcrProcess
 
 from db import (db, OcrDocument, OcrPage, OcrBlock, create_tables)
+import peewee
 import wsl
 
 # References
@@ -233,6 +234,8 @@ class ListDocuments(Qw.QWidget):
             try:
                 doc = OcrDocument.get(OcrDocument.id == doc_id)
             except IndexError:
+                break
+            except peewee.DoesNotExist:
                 break
         # assuming that each doc will surely have at least one page
         doc_button = SingleDocumentButton(doc.name, doc.pages[0].image, doc)
