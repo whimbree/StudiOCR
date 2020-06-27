@@ -54,7 +54,7 @@ class StatusEmitter(QThread):
 
     # These need to be declared as part of the class, not as part of an instance
     document_process_status = Signal(int)
-    data_available = Signal(str)
+    data_available = Signal(int)
 
     def __init__(self, from_ocr_process: Pipe):
         super().__init__()
@@ -120,8 +120,8 @@ class MainWindow(QMainWindow):
         # Configure emitter
         self.emitter.document_process_status.connect(self.update_status_bar)
 
-        self.emitter.data_available.connect(lambda a:
-                                            self.main_widget.documents.display_new_document(a))
+        self.emitter.data_available.connect(
+            self.main_widget.documents.display_new_document)
 
         self.docs_in_queue = 0
 
@@ -130,6 +130,7 @@ class MainWindow(QMainWindow):
         self.docs_in_queue += 1
         self.process_queue.put((name, filenames))
 
+    @Slot(int)
     def update_status_bar(self, current_doc_process_status):
         self.statusBar().showMessage(
             f"{self.docs_in_queue} documents in queue. Current document {current_doc_process_status}% complete.")
@@ -171,8 +172,8 @@ class ListDocuments(QWidget):
 
         self._layout = QVBoxLayout()
 
-        doc_grid = QGridLayout()
-        ui_box = QHBoxLayout()
+        self.doc_grid = QGridLayout()
+        self.ui_box = QHBoxLayout()
 
         self._docButtons = []
 
@@ -184,47 +185,62 @@ class ListDocuments(QWidget):
         self.doc_search.setChecked(True)
         self.ocr_search = QRadioButton("OCR")
 
-        ui_box.addWidget(self.doc_search)
-        ui_box.addWidget(self.ocr_search)
-        ui_box.addWidget(self.search_bar)
+        self.ui_box.addWidget(self.doc_search)
+        self.ui_box.addWidget(self.ocr_search)
+        self.ui_box.addWidget(self.search_bar)
 
         # self._layout.addWidget(self.search_bar)
 
-        # If there are no documents, then the for loop won't create the index variable
-        self.idx = 0
-        for self.idx, doc in enumerate(OcrDocument.select()):
-            img = None
+        for doc in OcrDocument.select():
+            # assuming that each doc will surely have at least one page
+            img = doc.pages[0].image
             name = doc.name
-            if len(doc.pages) > 0:
-                img = doc.pages[0].image
 
             doc_button = SingleDocumentButton(name, img, doc)
             doc_button.pressed.connect(
                 lambda doc=doc: self.create_doc_window(doc))
-            doc_grid.addWidget(doc_button, self.idx / 4, self.idx % 4, 1, 1)
             self._docButtons.append(doc_button)
 
-        new_doc_button = SingleDocumentButton('Add New Document', None, None)
-        new_doc_button.pressed.connect(
+        self.new_doc_button = SingleDocumentButton(
+            'Add New Document', None, None)
+        self.new_doc_button.pressed.connect(
             lambda: self.create_new_doc_window())
-        doc_grid.addWidget(new_doc_button, (self.idx+1) /
-                           4, (self.idx+1) % 4, 1, 1)
 
-        self._layout.addLayout(ui_box)
-        self._layout.addLayout(doc_grid)
+        self.render_doc_grid()
+
+        self._layout.addLayout(self.ui_box)
+        self._layout.addLayout(self.doc_grid)
 
         self.setLayout(self._layout)
 
+    def render_doc_grid(self):
+        # clear the doc_grid, not deleting widgets since they will be used later for repopulation
+        while self.doc_grid.count():
+            self.doc_grid.takeAt(0)
+        # repopulate the doc_grid
+        idx = 0
+        for button in self._docButtons:
+            self.doc_grid.addWidget(button, idx / 4, idx % 4, 1, 1)
+            idx += 1
+        self.doc_grid.addWidget(self.new_doc_button, idx / 4, idx % 4, 1, 1)
+
+    @Slot(int)
     def display_new_document(self, doc_id):
-        # For some reason the doc_id does not come through.
-        # We will likely have to rerender all documents from DB.
-        print(doc_id)
-        # doc = OcrDocument.get(OcrDocument.id == doc_id)
-        # # I'm assuming that each doc will surely have at least one page
-        # doc_button = SingleDocumentButton(doc.name, doc.pages[0].image)
-        # doc_button.pressed.connect(
-        #     lambda doc=doc: self.create_doc_window(doc))
-        # layout.addWidget(doc_button, self.idx / 4, self.idx % 4, 1, 1)
+        doc = None
+        # TODO: Fix horrible solution, use mutex maybe?
+        # hacky solution, database is updated in another process, keep polling the database
+        # until the information that the other process inserted becomes available
+        while doc is None:
+            try:
+                doc = OcrDocument.get(OcrDocument.id == doc_id)
+            except IndexError:
+                break
+        # assuming that each doc will surely have at least one page
+        doc_button = SingleDocumentButton(doc.name, doc.pages[0].image, doc)
+        doc_button.pressed.connect(
+            lambda doc=doc: self.create_doc_window(doc))
+        self._docButtons.append(doc_button)
+        self.render_doc_grid()
 
     def create_doc_window(self, doc):
         if(self.ocr_search.isChecked()):
@@ -513,7 +529,8 @@ class DocWindow(QWidget):
                         color = Qt.red
                     painter = QPainter(pixmap)
                     painter.setPen(QPen(color, 3, Qt.SolidLine))
-                    painter.drawRect(block.left, block.top, block.width, block.height)
+                    painter.drawRect(block.left, block.top,
+                                     block.width, block.height)
                     painter.end()
 
                 self.im = pixmap.scaled(
