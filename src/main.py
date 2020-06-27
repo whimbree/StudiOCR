@@ -370,10 +370,8 @@ class NewDocOptions(QWidget):
         info.setWindowTitle("OCR Information")
         info.setIcon(QMessageBox.Information)
         info.setInformativeText("Best vs Fast:\nBest is more accurate, but takes longer to process\nPSM Values:\n"
-                             "0 - Orientation and script detection only")
+                                "0 - Orientation and script detection only")
         info.exec_()
-
-
 
 
 class DocWindow(QWidget):
