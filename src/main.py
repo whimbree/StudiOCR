@@ -160,6 +160,8 @@ class ListDocuments(QWidget):
     def __init__(self, new_doc_cb, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
+        self._filter = ''
+
         self.new_doc_cb = new_doc_cb
 
         self.setSizePolicy(
@@ -390,6 +392,8 @@ class DocWindow(QWidget):
         self._doc = doc
         self._filter = filter
         self._currPage = 0
+        self._pages = self._doc.pages
+        self.update_page_blocks()
         self._listBlocks = []
 
         layout = QVBoxLayout()
@@ -407,7 +411,7 @@ class DocWindow(QWidget):
             self.update_filter()
         # display original image of first page
         else:
-            img = QImage.fromData(self._doc.pages[0].image)
+            img = QImage.fromData(self._pages[0].image)
             qp = QPixmap.fromImage(img)
             self.im = qp.scaled(2550 / 5, 3300 / 5,
                                 Qt.KeepAspectRatio, Qt.SmoothTransformation)
@@ -425,12 +429,6 @@ class DocWindow(QWidget):
 
         layout.addLayout(button_group)
         self.setLayout(layout)
-
-    # reference for writeTofile: https://pynative.com/python-sqlite-blob-insert-and-retrieve-digital-data/
-    def writeTofile(self, data, filename):
-        with open(filename, 'wb') as file:
-            file.write(data)
-        print("Stored blob data into: ", filename, "\n")
 
     def resize_keep_aspect_ratio(self, image, width=None, height=None, inter=cv2.INTER_AREA):
         new_dim = None
@@ -454,8 +452,9 @@ class DocWindow(QWidget):
         :return: NONE
         """
         # if on last page, make current page the first page
-        if(self._currPage + 1 != len(self._doc.pages)):
+        if(self._currPage + 1 != len(self._pages)):
             self._currPage += 1
+            self.update_page_blocks()
         self.update_image()
 
     def prev_page(self):
@@ -466,7 +465,11 @@ class DocWindow(QWidget):
         """
         if(self._currPage != 0):
             self._currPage -= 1
+            self.update_page_blocks()
         self.update_image()
+
+    def update_page_blocks(self):
+        self._page_blocks = self._pages[self._currPage].blocks
 
     def update_filter(self):
         """
@@ -483,7 +486,7 @@ class DocWindow(QWidget):
         """
         # if there is no search criteria, display original image of current page
         if not self._filter:
-            img = QImage.fromData(self._doc.pages[self._currPage].image)
+            img = QImage.fromData(self._pages[self._currPage].image)
             qp = QPixmap.fromImage(img)
             self.im = qp.scaled(2550 / 5, 3300 / 5,
                                 Qt.KeepAspectRatio, Qt.SmoothTransformation)
@@ -492,7 +495,7 @@ class DocWindow(QWidget):
             # reset listBlocks
             self._listBlocks = []
             # search each block in the current page to see if it contains the search criteria (filter)
-            for block in self._doc.pages[self._currPage].blocks:
+            for block in self._page_blocks:
                 # if the filter value is contained in the block text, add block to list
                 if(self._filter.lower() in block.text.lower()):
                     print(block.text, block.page_id)
@@ -500,37 +503,27 @@ class DocWindow(QWidget):
 
             # for each block containing the search criteria, draw rectangles on the image
             if self._listBlocks:
-                # Convert image from database into numpy array for cv2
-                nparr = np.frombuffer((self._doc.pages)[
-                    self._currPage].image, np.uint8)
-                # Convert numpy array into cv2 object for processing
-                img = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
-                img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
+                img = QImage.fromData(self._pages[self._currPage].image)
+                pixmap = QPixmap.fromImage(img)
                 for block in self._listBlocks:
-                    # set start and end point of rectangle
-                    start_point = (block.left, block.top)
-                    end_point = (block.left + block.width,
-                                 block.top + block.height)
-                    color = (0, 0, 0)
                     # set color of rectangle based on confidence level of OCR
                     if block.conf >= 80:
-                        color = (0, 255, 0)
+                        color = Qt.green
                     elif (block.conf < 80 and block.conf >= 40):
-                        color = (255, 0, 0)
+                        color = Qt.blue
                     else:
-                        color = (0, 0, 255)
-                    img = cv2.rectangle(img, start_point, end_point, color, 2)
+                        color = Qt.red
+                    painter = QPainter(pixmap)
+                    painter.setPen(QPen(color, 3, Qt.SolidLine))
+                    painter.drawRect(block.left, block.top, block.width, block.height)
+                    painter.end()
 
-                # convert cv2 object to QImage
-                qimg = QImage(
-                    img, img.shape[1], img.shape[0], img.shape[1]*3, QImage.Format_RGB888)
-                img_pixmap = QPixmap.fromImage(qimg)
-                self.im = img_pixmap.scaled(
+                self.im = pixmap.scaled(
                     2550 / 5, 3300 / 5, Qt.KeepAspectRatio, Qt.SmoothTransformation)
                 self.label.setPixmap(self.im)
             # no blocks found, display original image
             else:
-                img = QImage.fromData(self._doc.pages[self._currPage].image)
+                img = QImage.fromData(self._pages[self._currPage].image)
                 qp = QPixmap.fromImage(img)
                 self.im = qp.scaled(
                     2550 / 5, 3300 / 5, Qt.KeepAspectRatio, Qt.SmoothTransformation)
