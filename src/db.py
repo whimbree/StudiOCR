@@ -1,4 +1,4 @@
-from peewee import *
+from peewee import Model, PrimaryKeyField, CharField, IntegerField, BlobField, ForeignKeyField, TextField
 from playhouse.sqlite_ext import SqliteExtDatabase
 
 # Should likely change where the database files are stored

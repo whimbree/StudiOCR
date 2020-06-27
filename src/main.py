@@ -1,17 +1,16 @@
-from PySide2.QtCore import *
-from PySide2.QtWidgets import *
-from PySide2.QtGui import *
+from PySide2 import QtCore as Qc
+from PySide2 import QtWidgets as Qw
+from PySide2 import QtGui as Qg
 
 from multiprocessing import Process, Queue, Pipe
 
 import sys
 import random
-import cv2
 import numpy as np
 
-from ocr import *
+from ocr import OcrProcess
 
-from db import *
+from db import (db, OcrDocument, OcrPage, OcrBlock, create_tables)
 import wsl
 
 # References
@@ -27,7 +26,7 @@ def main():
 
     sys_argv = sys.argv
     sys_argv += ['--style', 'Fusion']
-    app = QApplication(sys_argv)  # Create application
+    app = Qw.QApplication(sys_argv)  # Create application
 
     # Create a pipe and queue for inter-process communication
     main_pipe, child_pipe = Pipe()
@@ -47,14 +46,14 @@ def main():
     exit(0)
 
 
-class StatusEmitter(QThread):
+class StatusEmitter(Qc.QThread):
     """
     Waits for new processed OCR data, then tells application to update accordingly
     """
 
     # These need to be declared as part of the class, not as part of an instance
-    document_process_status = Signal(int)
-    data_available = Signal(int)
+    document_process_status = Qc.Signal(int)
+    data_available = Qc.Signal(int)
 
     def __init__(self, from_ocr_process: Pipe):
         super().__init__()
@@ -100,7 +99,7 @@ class OcrProc(Process):
             self.to_output.send((100, ocr.commit_data()))
 
 
-class MainWindow(QMainWindow):
+class MainWindow(Qw.QMainWindow):
     def __init__(self, child_process_queue: Queue, emitter: StatusEmitter, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
@@ -130,7 +129,7 @@ class MainWindow(QMainWindow):
         self.docs_in_queue += 1
         self.process_queue.put((name, filenames))
 
-    @Slot(int)
+    @Qc.Slot(int)
     def update_status_bar(self, current_doc_process_status):
         self.statusBar().showMessage(
             f"{self.docs_in_queue} documents in queue. Current document {current_doc_process_status}% complete.")
@@ -140,24 +139,24 @@ class MainWindow(QMainWindow):
                 self.statusBar().showMessage("All documents processed.")
 
 
-class MainUI(QWidget):
+class MainUI(Qw.QWidget):
     def __init__(self, new_doc_cb, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
         self.new_doc_cb = new_doc_cb
 
-        self.welcome_label = QLabel('Welcome to StudiOCR')
-        self.welcome_label.setAlignment(Qt.AlignCenter)
+        self.welcome_label = Qw.QLabel('Welcome to StudiOCR')
+        self.welcome_label.setAlignment(Qc.Qt.AlignCenter)
 
         self.documents = ListDocuments(self.new_doc_cb, *args, **kwargs)
 
-        self.layout = QVBoxLayout()
-        self.layout.addWidget(self.welcome_label, alignment=Qt.AlignTop)
-        self.layout.addWidget(self.documents, alignment=Qt.AlignTop)
+        self.layout = Qw.QVBoxLayout()
+        self.layout.addWidget(self.welcome_label, alignment=Qc.Qt.AlignTop)
+        self.layout.addWidget(self.documents, alignment=Qc.Qt.AlignTop)
         self.setLayout(self.layout)
 
 
-class ListDocuments(QWidget):
+class ListDocuments(Qw.QWidget):
     def __init__(self, new_doc_cb, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
@@ -166,24 +165,24 @@ class ListDocuments(QWidget):
         self.new_doc_cb = new_doc_cb
 
         self.setSizePolicy(
-            QSizePolicy.MinimumExpanding,
-            QSizePolicy.MinimumExpanding
+            Qw.QSizePolicy.MinimumExpanding,
+            Qw.QSizePolicy.MinimumExpanding
         )
 
-        self._layout = QVBoxLayout()
+        self._layout = Qw.QVBoxLayout()
 
-        self.doc_grid = QGridLayout()
-        self.ui_box = QHBoxLayout()
+        self.doc_grid = Qw.QGridLayout()
+        self.ui_box = Qw.QHBoxLayout()
 
         self._docButtons = []
 
-        self.search_bar = QLineEdit()
+        self.search_bar = Qw.QLineEdit()
         self.search_bar.setPlaceholderText("Search for document name...")
         self.search_bar.textChanged.connect(self.update_filter)
 
-        self.doc_search = QRadioButton("DOC")
+        self.doc_search = Qw.QRadioButton("DOC")
         self.doc_search.setChecked(True)
-        self.ocr_search = QRadioButton("OCR")
+        self.ocr_search = Qw.QRadioButton("OCR")
 
         self.ui_box.addWidget(self.doc_search)
         self.ui_box.addWidget(self.ocr_search)
@@ -224,7 +223,7 @@ class ListDocuments(QWidget):
             idx += 1
         self.doc_grid.addWidget(self.new_doc_button, idx / 4, idx % 4, 1, 1)
 
-    @Slot(int)
+    @Qc.Slot(int)
     def display_new_document(self, doc_id):
         doc = None
         # TODO: Fix horrible solution, use mutex maybe?
@@ -273,7 +272,7 @@ class ListDocuments(QWidget):
                             button.hide()
 
 
-class NewDocWindow(QWidget):
+class NewDocWindow(Qw.QWidget):
     def __init__(self, new_doc_cb, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.new_doc_cb = new_doc_cb
@@ -282,14 +281,14 @@ class NewDocWindow(QWidget):
 
         self.settings = NewDocOptions(self.close, self.new_doc_cb)
 
-        layout = QHBoxLayout()
+        layout = Qw.QHBoxLayout()
         layout.addWidget(self.settings)
         # TODO: Create some kind of preview for the selected image files
         # ^Done with a "Files Chosen" section down below
         self.setLayout(layout)
 
 
-class NewDocOptions(QWidget):
+class NewDocOptions(Qw.QWidget):
     def __init__(self, close_cb, new_doc_cb, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.close_cb = close_cb
@@ -297,49 +296,49 @@ class NewDocOptions(QWidget):
 
         self.file_names = []
 
-        self.choose_file_button = QPushButton("Choose images")
+        self.choose_file_button = Qw.QPushButton("Choose images")
         self.choose_file_button.clicked.connect(self.choose_files)
 
-        self.options = QGroupBox("Options")
-        self.name_label = QLabel("Document Name:")
-        self.name_edit = QLineEdit()
-        self.best_vs_fast = QLabel("Best Model or Fast Model:")
-        self.best_vs_fast_options = QComboBox()
+        self.options = Qw.QGroupBox("Options")
+        self.name_label = Qw.QLabel("Document Name:")
+        self.name_edit = Qw.QLineEdit()
+        self.best_vs_fast = Qw.QLabel("Best Model or Fast Model:")
+        self.best_vs_fast_options = Qw.QComboBox()
         self.best_vs_fast_options.addItem("Best")
         self.best_vs_fast_options.addItem("Fast")
-        self.psm_label = QLabel("PSM Number")
-        self.psm_num = QSpinBox()
+        self.psm_label = Qw.QLabel("PSM Number")
+        self.psm_num = Qw.QSpinBox()
         self.psm_num.setRange(1, 10)
-        self.info_button = QPushButton()
-        self.info_button.setIcon(QIcon("../images/info_icon.png"))
+        self.info_button = Qw.QPushButton()
+        self.info_button.setIcon(Qg.QIcon("../images/info_icon.png"))
         self.info_button.clicked.connect(self.display_info)
-        options_layout = QVBoxLayout()
+        options_layout = Qw.QVBoxLayout()
         options_layout.addWidget(self.name_label)
         options_layout.addWidget(self.name_edit)
         options_layout.addWidget(self.best_vs_fast)
         options_layout.addWidget(self.best_vs_fast_options)
         options_layout.addWidget(self.psm_label)
         options_layout.addWidget(self.psm_num)
-        options_layout.addWidget(self.info_button, alignment=Qt.AlignRight)
+        options_layout.addWidget(self.info_button, alignment=Qc.Qt.AlignRight)
         self.options.setLayout(options_layout)
 
-        self.file_names_label = QLabel("Files Chosen: ")
-        self.listwidget = QListWidget()
+        self.file_names_label = Qw.QLabel("Files Chosen: ")
+        self.listwidget = Qw.QListWidget()
 
-        self.submit = QPushButton("Process Document")
+        self.submit = Qw.QPushButton("Process Document")
         self.submit.clicked.connect(self.process_document)
 
-        layout = QVBoxLayout()
+        layout = Qw.QVBoxLayout()
         layout.addWidget(self.choose_file_button)
         layout.addWidget(self.options)
         layout.addWidget(self.file_names_label)
         layout.addWidget(self.listwidget)
-        layout.addWidget(self.submit, alignment=Qt.AlignBottom)
+        layout.addWidget(self.submit, alignment=Qc.Qt.AlignBottom)
         self.setLayout(layout)
 
     def choose_files(self):
-        file_dialog = QFileDialog(self)
-        file_dialog.setFileMode(QFileDialog.ExistingFiles)
+        file_dialog = Qw.QFileDialog(self)
+        file_dialog.setFileMode(Qw.QFileDialog.ExistingFiles)
         file_dialog.setNameFilter(
             "Images (*.png *.xpm *.jpg);;PDF Files (*.pdf)")
         file_dialog.selectNameFilter("Images (*.png *.xpm *.jpg)")
@@ -355,8 +354,8 @@ class NewDocOptions(QWidget):
         name = self.name_edit.text()
         query = OcrDocument.select().where(OcrDocument.name == name)
         if query.exists() or len(name) == 0:
-            msg = QMessageBox()
-            msg.setIcon(QMessageBox.Warning)
+            msg = Qw.QMessageBox()
+            msg.setIcon(Qw.QMessageBox.Warning)
             msg.setText("Document names must be unique and non empty.")
             if len(name) == 0:
                 msg.setInformativeText(
@@ -367,8 +366,8 @@ class NewDocOptions(QWidget):
             msg.setWindowTitle("Error")
             msg.exec_()
         elif len(self.file_names) == 0:
-            msg = QMessageBox()
-            msg.setIcon(QMessageBox.Warning)
+            msg = Qw.QMessageBox()
+            msg.setIcon(Qw.QMessageBox.Warning)
             msg.setText("No files were selected as part of the document.")
             msg.setInformativeText(
                 'Please select files to process.')
@@ -380,17 +379,17 @@ class NewDocOptions(QWidget):
 
     def display_info(self):
         print("Info clicked")
-        info = QMessageBox()
+        info = Qw.QMessageBox()
         print(self.size())
         info.setFixedSize(self.size())
         info.setWindowTitle("OCR Information")
-        info.setIcon(QMessageBox.Information)
+        info.setIcon(Qw.QMessageBox.Information)
         info.setInformativeText("Best vs Fast:\nBest is more accurate, but takes longer to process\nPSM Values:\n"
                                 "0 - Orientation and script detection only")
         info.exec_()
 
 
-class DocWindow(QWidget):
+class DocWindow(Qw.QWidget):
     def __init__(self, doc, filter='', *args, **kwargs):
         """
         Constructor method
@@ -410,54 +409,39 @@ class DocWindow(QWidget):
         self.update_page_blocks()
         self._listBlocks = []
 
-        layout = QVBoxLayout()
+        layout = Qw.QVBoxLayout()
 
-        self.search_bar = QLineEdit()
+        self.search_bar = Qw.QLineEdit()
         self.search_bar.setPlaceholderText("Search through notes...")
         self.search_bar.textChanged.connect(self.update_filter)
-        layout.addWidget(self.search_bar, alignment=Qt.AlignTop)
+        layout.addWidget(self.search_bar, alignment=Qc.Qt.AlignTop)
 
-        self.label = QLabel()
+        self.label = Qw.QLabel()
         # if filter passed through from main window, set the search bar text and update window
         if (self._filter):
             self.search_bar.setText(self._filter)
-            self.im = QPixmap()
+            self.im = Qg.QPixmap()
             self.update_filter()
         # display original image of first page
         else:
-            img = QImage.fromData(self._pages[0].image)
-            qp = QPixmap.fromImage(img)
+            img = Qg.QImage.fromData(self._pages[0].image)
+            qp = Qg.QPixmap.fromImage(img)
             self.im = qp.scaled(2550 / 5, 3300 / 5,
-                                Qt.KeepAspectRatio, Qt.SmoothTransformation)
+                                Qc.Qt.KeepAspectRatio, Qc.Qt.SmoothTransformation)
             self.label.setPixmap(self.im)
         layout.addWidget(self.label)
 
         # create button group for prev and next page buttons
-        self.next_page_button = QPushButton("Next Page")
+        self.next_page_button = Qw.QPushButton("Next Page")
         self.next_page_button.clicked.connect(self.next_page)
-        self.prev_page_button = QPushButton("Previous Page")
+        self.prev_page_button = Qw.QPushButton("Previous Page")
         self.prev_page_button.clicked.connect(self.prev_page)
-        button_group = QHBoxLayout()
+        button_group = Qw.QHBoxLayout()
         button_group.addWidget(self.prev_page_button)
         button_group.addWidget(self.next_page_button)
 
         layout.addLayout(button_group)
         self.setLayout(layout)
-
-    def resize_keep_aspect_ratio(self, image, width=None, height=None, inter=cv2.INTER_AREA):
-        new_dim = None
-        h, w = image.shape[:2]
-
-        if width is None and height is None:
-            return image
-        elif width is None:
-            ratio = height / h
-            new_dim = (int(w * ratio), height)
-        else:
-            ratio = width / w
-            new_dim = (width, int(h * ratio))
-
-        return cv2.resize(image, new_dim, interpolation=inter)
 
     def next_page(self):
         """
@@ -500,10 +484,10 @@ class DocWindow(QWidget):
         """
         # if there is no search criteria, display original image of current page
         if not self._filter:
-            img = QImage.fromData(self._pages[self._currPage].image)
-            qp = QPixmap.fromImage(img)
+            img = Qg.QImage.fromData(self._pages[self._currPage].image)
+            qp = Qg.QPixmap.fromImage(img)
             self.im = qp.scaled(2550 / 5, 3300 / 5,
-                                Qt.KeepAspectRatio, Qt.SmoothTransformation)
+                                Qc.Qt.KeepAspectRatio, Qc.Qt.SmoothTransformation)
             self.label.setPixmap(self.im)
         else:
             # reset listBlocks
@@ -517,35 +501,35 @@ class DocWindow(QWidget):
 
             # for each block containing the search criteria, draw rectangles on the image
             if self._listBlocks:
-                img = QImage.fromData(self._pages[self._currPage].image)
-                pixmap = QPixmap.fromImage(img)
+                img = Qg.QImage.fromData(self._pages[self._currPage].image)
+                pixmap = Qg.QPixmap.fromImage(img)
                 for block in self._listBlocks:
                     # set color of rectangle based on confidence level of OCR
                     if block.conf >= 80:
-                        color = Qt.green
+                        color = Qc.Qt.green
                     elif (block.conf < 80 and block.conf >= 40):
-                        color = Qt.blue
+                        color = Qc.Qt.blue
                     else:
-                        color = Qt.red
-                    painter = QPainter(pixmap)
-                    painter.setPen(QPen(color, 3, Qt.SolidLine))
+                        color = Qc.Qt.red
+                    painter = Qg.QPainter(pixmap)
+                    painter.setPen(Qg.QPen(color, 3, Qc.Qt.SolidLine))
                     painter.drawRect(block.left, block.top,
                                      block.width, block.height)
                     painter.end()
 
                 self.im = pixmap.scaled(
-                    2550 / 5, 3300 / 5, Qt.KeepAspectRatio, Qt.SmoothTransformation)
+                    2550 / 5, 3300 / 5, Qc.Qt.KeepAspectRatio, Qc.Qt.SmoothTransformation)
                 self.label.setPixmap(self.im)
             # no blocks found, display original image
             else:
-                img = QImage.fromData(self._pages[self._currPage].image)
-                qp = QPixmap.fromImage(img)
+                img = Qg.QImage.fromData(self._pages[self._currPage].image)
+                qp = Qg.QPixmap.fromImage(img)
                 self.im = qp.scaled(
-                    2550 / 5, 3300 / 5, Qt.KeepAspectRatio, Qt.SmoothTransformation)
+                    2550 / 5, 3300 / 5, Qc.Qt.KeepAspectRatio, Qc.Qt.SmoothTransformation)
                 self.label.setPixmap(self.im)
 
 
-class SingleDocumentButton(QToolButton):
+class SingleDocumentButton(Qw.QToolButton):
     def __init__(self, name, image, doc, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
@@ -554,14 +538,14 @@ class SingleDocumentButton(QToolButton):
 
         self.setFixedSize(160, 160)
 
-        layout = QVBoxLayout()
+        layout = Qw.QVBoxLayout()
 
-        label = QLabel(name)
+        label = Qw.QLabel(name)
         if image is not None:
             thumbnail = DocumentThumbnail(image)
-            layout.addWidget(thumbnail, alignment=Qt.AlignCenter)
+            layout.addWidget(thumbnail, alignment=Qc.Qt.AlignCenter)
 
-        layout.addWidget(label, alignment=Qt.AlignCenter)
+        layout.addWidget(label, alignment=Qc.Qt.AlignCenter)
 
         self.setLayout(layout)
 
@@ -582,18 +566,18 @@ class SingleDocumentButton(QToolButton):
         self._doc = doc
 
 
-class DocumentThumbnail(QLabel):
+class DocumentThumbnail(Qw.QLabel):
     def __init__(self, image, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        qimg = QImage.fromData(image)
-        self.pixmap = QPixmap.fromImage(qimg)
+        qimg = Qg.QImage.fromData(image)
+        self.pixmap = Qg.QPixmap.fromImage(qimg)
 
         self.setPixmap(self.pixmap.scaled(
-            self.size(), Qt.KeepAspectRatio, Qt.SmoothTransformation))
+            self.size(), Qc.Qt.KeepAspectRatio, Qc.Qt.SmoothTransformation))
 
-    def resizeEvent(self, e: QResizeEvent):
+    def resizeEvent(self, e: Qg.QResizeEvent):
         self.setPixmap(self.pixmap.scaled(
-            self.size(), Qt.KeepAspectRatio, Qt.SmoothTransformation))
+            self.size(), Qc.Qt.KeepAspectRatio, Qc.Qt.SmoothTransformation))
         super().resizeEvent(e)
 
 
