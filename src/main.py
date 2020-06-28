@@ -124,6 +124,14 @@ class MainWindow(Qw.QMainWindow):
 
         self.docs_in_queue = 0
 
+        self.setStyleSheet("""
+        QWidget {
+            border: 20px solid black;
+            border-radius: 10px;
+            background-color: rgb(255, 255, 255);
+            }
+        """)
+
     def new_doc(self, name, filenames):
         """Send filenames and doc name to ocr process"""
         self.docs_in_queue += 1
@@ -325,6 +333,9 @@ class NewDocOptions(Qw.QWidget):
         self.file_names_label = Qw.QLabel("Files Chosen: ")
         self.listwidget = Qw.QListWidget()
 
+        self.remove = Qw.QPushButton("Remove Document")
+        self.remove.clicked.connect(self.remove_document)
+
         self.submit = Qw.QPushButton("Process Document")
         self.submit.clicked.connect(self.process_document)
 
@@ -333,6 +344,7 @@ class NewDocOptions(Qw.QWidget):
         layout.addWidget(self.options)
         layout.addWidget(self.file_names_label)
         layout.addWidget(self.listwidget)
+        layout.addWidget(self.remove)
         layout.addWidget(self.submit, alignment=Qc.Qt.AlignBottom)
         self.setLayout(layout)
 
@@ -376,6 +388,21 @@ class NewDocOptions(Qw.QWidget):
         else:
             self.new_doc_cb(name, self.file_names)
             self.close_cb()
+
+    #reference: https://stackoverflow.com/questions/23835847/how-to-remove-item-from-qlistwidget
+    def remove_document(self):
+        listItems = self.listwidget.selectedItems()
+        if not listItems:
+            return
+        for item in listItems:
+            print(item.text())
+            #print(item.text)
+            #print(self.listwidget.row(item))
+            # takeItem removes the index given
+            self.listwidget.takeItem(self.listwidget.row(item))
+            print(self.file_names)
+            self.file_names.remove(item.text())
+            print(self.file_names)
 
     def display_info(self):
         print("Info clicked")
@@ -495,9 +522,10 @@ class DocWindow(Qw.QWidget):
             # search each block in the current page to see if it contains the search criteria (filter)
             for block in self._page_blocks:
                 # if the filter value is contained in the block text, add block to list
-                if(self._filter.lower() in block.text.lower()):
-                    print(block.text, block.page_id)
-                    self._listBlocks.append(block)
+                for word in self._filter.lower().split():
+                    if(word in block.text.lower()):
+                        print(block.text, block.page_id)
+                        self._listBlocks.append(block)
 
             # for each block containing the search criteria, draw rectangles on the image
             if self._listBlocks:
