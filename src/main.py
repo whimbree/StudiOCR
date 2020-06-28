@@ -391,7 +391,6 @@ class NewDocOptions(Qw.QWidget):
         layout.addWidget(self.file_names_label)
         layout.addWidget(self.listwidget)
         layout.addWidget(self.options)
-
         layout.addWidget(self.submit, alignment=Qc.Qt.AlignBottom)
         self.setLayout(layout)
 
@@ -406,7 +405,11 @@ class NewDocOptions(Qw.QWidget):
             file_names = file_dialog.selectedFiles()
 
         for file_name in file_names:
-            self.listwidget.insertItem(self.listwidget.count(), file_name)
+            itemsTextList =  [self.listwidget.item(i).text() for i in range(self.listwidget.count())]
+            if file_name not in itemsTextList:
+                self.listwidget.insertItem(self.listwidget.count(), file_name)
+            else:
+                print("Do not insert duplicates.")
 
     def remove_files(self):
         items = self.listwidget.selectedItems()
@@ -575,9 +578,10 @@ class DocWindow(Qw.QWidget):
             # search each block in the current page to see if it contains the search criteria (filter)
             for block in self._page_blocks:
                 # if the filter value is contained in the block text, add block to list
-                if(self._filter.lower() in block.text.lower()):
-                    print(block.text, block.page_id)
-                    self._listBlocks.append(block)
+                for word in self._filter.lower().split():
+                    if(word in block.text.lower()):
+                        print(block.text, block.page_id)
+                        self._listBlocks.append(block)
 
             # for each block containing the search criteria, draw rectangles on the image
             if self._listBlocks:
