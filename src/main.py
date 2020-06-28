@@ -207,12 +207,15 @@ class ListDocuments(Qw.QWidget):
             doc_button = SingleDocumentButton(name, img, doc)
             doc_button.pressed.connect(
                 lambda doc=doc: self.create_doc_window(doc))
+            doc_button.setVisible(True)
             self._docButtons.append(doc_button)
 
         self.new_doc_button = SingleDocumentButton(
             'Add New Document', None, None)
         self.new_doc_button.pressed.connect(
             lambda: self.create_new_doc_window())
+
+        self._active_docs = self._docButtons
 
         self.render_doc_grid()
 
@@ -241,7 +244,8 @@ class ListDocuments(Qw.QWidget):
             self.doc_grid.addWidget(
                 self.new_doc_button, idx / 4, idx % 4, 1, 1)
             idx += 1
-        for button in self._docButtons:
+        self._active_docs.sort(key=lambda button:button.name.lower())
+        for button in self._active_docs:
             self.doc_grid.addWidget(button, idx / 4, idx % 4, 1, 1)
             idx += 1
         temp_widget = Qw.QWidget()
@@ -298,12 +302,11 @@ class ListDocuments(Qw.QWidget):
         db.connect(reuse_if_open=True)
         self._filter = self.search_bar.text()
 
+        self._active_docs = []
         if(self.doc_search.isChecked()):
             for button in self._docButtons:
                 if(self._filter.lower() in button.name.lower()):
-                    button.show()
-                else:
-                    button.hide()
+                    self._active_docs.append(button)
         elif(self.ocr_search.isChecked()):
             for button in self._docButtons:
                 text_found = False
@@ -311,14 +314,11 @@ class ListDocuments(Qw.QWidget):
                     for block in page.blocks:
                         if(self._filter.lower() in block.text.lower()):
                             if(not text_found):
-                                button.show()
+                                self._active_docs.append(button)
                                 text_found = True
                                 break
-                        else:
-                            if(not text_found):
-                                button.hide()
         db.close()
-
+        self.render_doc_grid()
 
 class NewDocWindow(Qw.QWidget):
     def __init__(self, new_doc_cb, *args, **kwargs):
