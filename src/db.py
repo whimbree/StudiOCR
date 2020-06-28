@@ -21,6 +21,17 @@ class OcrDocument(BaseModel):
     id = PrimaryKeyField(null=False)
     name = CharField(unique=True)
 
+    def delete_document(self):
+        num_rows_deleted = 0
+        for page in self.pages:
+            for block in page.blocks:
+                block.delete_instance()
+                num_rows_deleted += 1
+            page.delete_instance()
+            num_rows_deleted += 1
+        self.delete_instance()
+        return num_rows_deleted + 1
+
 
 # Stores an individual page of OCR'ed document
 # Also stores the original image file of the page

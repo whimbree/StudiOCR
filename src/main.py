@@ -188,9 +188,14 @@ class ListDocuments(Qw.QWidget):
         self.doc_search.setChecked(True)
         self.ocr_search = Qw.QRadioButton("OCR")
 
+        self.remove_mode = Qw.QPushButton("Enable remove mode")
+        self.remove_mode.setCheckable(True)
+        self.remove_mode.toggled.connect(self.set_remove_mode)
+
         self.ui_box.addWidget(self.doc_search)
         self.ui_box.addWidget(self.ocr_search)
         self.ui_box.addWidget(self.search_bar)
+        self.ui_box.addWidget(self.remove_mode)
 
         # self._layout.addWidget(self.search_bar)
 
@@ -217,14 +222,25 @@ class ListDocuments(Qw.QWidget):
         self.setLayout(self._layout)
         db.close()
 
+    def set_remove_mode(self):
+        if self.remove_mode.isChecked():
+            self.remove_mode.setText("Disable remove mode")
+        else:
+            self.remove_mode.setText("Enable remove mode")
+        self.render_doc_grid()
+
     def render_doc_grid(self):
         # clear the doc_grid, not deleting widgets since they will be used later for repopulation
         while self.doc_grid.count():
-            self.doc_grid.takeAt(0)
+            # must make the removed widget a child of the class, so that it does not get garbage collected
+            self.doc_grid.takeAt(0).widget().setParent(self)
         # repopulate the doc_grid
         idx = 0
-        self.doc_grid.addWidget(self.new_doc_button, idx / 4, idx % 4, 1, 1)
-        idx += 1
+        # hide the new document button if remove mode is enabled
+        if not self.remove_mode.isChecked():
+            self.doc_grid.addWidget(
+                self.new_doc_button, idx / 4, idx % 4, 1, 1)
+            idx += 1
         for button in self._docButtons:
             self.doc_grid.addWidget(button, idx / 4, idx % 4, 1, 1)
             idx += 1
@@ -245,11 +261,34 @@ class ListDocuments(Qw.QWidget):
         db.close()
 
     def create_doc_window(self, doc):
-        if(self.ocr_search.isChecked()):
-            self.doc_window = DocWindow(doc, self._filter)
+        db.connect(reuse_if_open=True)
+        # If remove mode is checked, then prompt and remove the document
+        if self.remove_mode.isChecked():
+            confirm = Qw.QMessageBox()
+            confirm.setWindowTitle(f"Remove Document: {doc.name}")
+            confirm.setText(
+                f"Are you sure you want to delete document: {doc.name}?")
+            confirm.setIcon(Qw.QMessageBox.Question)
+            confirm.setStandardButtons(Qw.QMessageBox.Yes)
+            confirm.addButton(Qw.QMessageBox.No)
+            confirm.setDefaultButton(Qw.QMessageBox.No)
+            if confirm.exec_() == Qw.QMessageBox.Yes:
+                button_to_remove = None
+                for button in self._docButtons:
+                    if button.doc == doc:
+                        button_to_remove = button
+                        break
+                self.doc_grid.removeWidget(button_to_remove)
+                self._docButtons.remove(button_to_remove)
+                self.render_doc_grid()
+                print(doc.delete_document())
         else:
-            self.doc_window = DocWindow(doc)
-        self.doc_window.show()
+            if self.ocr_search.isChecked():
+                self.doc_window = DocWindow(doc, self._filter)
+            else:
+                self.doc_window = DocWindow(doc)
+            self.doc_window.show()
+        db.close()
 
     def create_new_doc_window(self):
         self.new_doc_window = NewDocWindow(self.new_doc_cb)
