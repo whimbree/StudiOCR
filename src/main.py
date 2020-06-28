@@ -124,14 +124,6 @@ class MainWindow(Qw.QMainWindow):
 
         self.docs_in_queue = 0
 
-        self.setStyleSheet("""
-        QWidget {
-            border: 20px solid black;
-            border-radius: 10px;
-            background-color: rgb(255, 255, 255);
-            }
-        """)
-
     def new_doc(self, name, filenames):
         """Send filenames and doc name to ocr process"""
         self.docs_in_queue += 1
@@ -388,9 +380,6 @@ class NewDocOptions(Qw.QWidget):
         self.listwidget.setSelectionMode(
             Qw.QAbstractItemView.ExtendedSelection)
 
-        self.remove = Qw.QPushButton("Remove Document")
-        self.remove.clicked.connect(self.remove_document)
-
         self.submit = Qw.QPushButton("Process Document")
         self.submit.clicked.connect(self.process_document)
 
@@ -399,7 +388,6 @@ class NewDocOptions(Qw.QWidget):
         layout.addWidget(self.remove_file_button)
         layout.addWidget(self.file_names_label)
         layout.addWidget(self.listwidget)
-        layout.addWidget(self.remove)
         layout.addWidget(self.options)
         layout.addWidget(self.submit, alignment=Qc.Qt.AlignBottom)
         self.setLayout(layout)
@@ -415,7 +403,11 @@ class NewDocOptions(Qw.QWidget):
             file_names = file_dialog.selectedFiles()
 
         for file_name in file_names:
-            self.listwidget.insertItem(self.listwidget.count(), file_name)
+            itemsTextList =  [self.listwidget.item(i).text() for i in range(self.listwidget.count())]
+            if file_name not in itemsTextList:
+                self.listwidget.insertItem(self.listwidget.count(), file_name)
+            else:
+                print("Do not insert duplicates.")
 
     def remove_files(self):
         items = self.listwidget.selectedItems()
@@ -453,21 +445,6 @@ class NewDocOptions(Qw.QWidget):
             self.new_doc_cb(name, file_names)
             self.close_cb()
         db.close()
-
-    #reference: https://stackoverflow.com/questions/23835847/how-to-remove-item-from-qlistwidget
-    def remove_document(self):
-        listItems = self.listwidget.selectedItems()
-        if not listItems:
-            return
-        for item in listItems:
-            print(item.text())
-            #print(item.text)
-            #print(self.listwidget.row(item))
-            # takeItem removes the index given
-            self.listwidget.takeItem(self.listwidget.row(item))
-            print(self.file_names)
-            self.file_names.remove(item.text())
-            print(self.file_names)
 
     def display_info(self):
         print("Info clicked")
