@@ -306,13 +306,17 @@ class ListDocuments(Qw.QWidget):
                     button.hide()
         elif(self.ocr_search.isChecked()):
             for button in self._docButtons:
+                text_found = False
                 for page in button.doc.pages:
                     for block in page.blocks:
                         if(self._filter.lower() in block.text.lower()):
-                            button.show()
-                            break
+                            if(not text_found):
+                                button.show()
+                                text_found = True
+                                break
                         else:
-                            button.hide()
+                            if(not text_found):
+                                button.hide()
         db.close()
 
 
