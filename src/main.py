@@ -404,10 +404,12 @@ class NewDocOptions(Qw.QWidget):
         if file_dialog.exec_():
             file_names = file_dialog.selectedFiles()
 
+        itemsTextList = [self.listwidget.item(
+            i).text() for i in range(self.listwidget.count())]
         for file_name in file_names:
-            itemsTextList =  [self.listwidget.item(i).text() for i in range(self.listwidget.count())]
             if file_name not in itemsTextList:
                 self.listwidget.insertItem(self.listwidget.count(), file_name)
+                itemsTextList.append(file_name)
             else:
                 print("Do not insert duplicates.")
 
