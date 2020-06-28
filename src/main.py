@@ -244,7 +244,7 @@ class ListDocuments(Qw.QWidget):
             self.doc_grid.addWidget(
                 self.new_doc_button, idx / 4, idx % 4, 1, 1)
             idx += 1
-        self._active_docs.sort(key=lambda button:button.name.lower())
+        self._active_docs.sort(key=lambda button: button.name.lower())
         for button in self._active_docs:
             self.doc_grid.addWidget(button, idx / 4, idx % 4, 1, 1)
             idx += 1
@@ -284,15 +284,16 @@ class ListDocuments(Qw.QWidget):
                         break
                 self.doc_grid.removeWidget(button_to_remove)
                 self._docButtons.remove(button_to_remove)
-                self.render_doc_grid()
+                self.update_filter()
+                db.connect(reuse_if_open=True)
                 print(doc.delete_document())
+                db.close()
         else:
             if self.ocr_search.isChecked():
                 self.doc_window = DocWindow(doc, self._filter)
             else:
                 self.doc_window = DocWindow(doc)
             self.doc_window.show()
-        db.close()
 
     def create_new_doc_window(self):
         self.new_doc_window = NewDocWindow(self.new_doc_cb)
@@ -319,6 +320,7 @@ class ListDocuments(Qw.QWidget):
                                 break
         db.close()
         self.render_doc_grid()
+
 
 class NewDocWindow(Qw.QWidget):
     def __init__(self, new_doc_cb, *args, **kwargs):
@@ -408,8 +410,17 @@ class NewDocOptions(Qw.QWidget):
 
     def remove_files(self):
         items = self.listwidget.selectedItems()
-        for item in items:
-            self.listwidget.takeItem(self.listwidget.row(item))
+        if len(items) == 0:
+            msg = Qw.QMessageBox()
+            msg.setIcon(Qw.QMessageBox.Information)
+            msg.setText("No files were selected for removal.")
+            msg.setInformativeText(
+                'Select one or more files in the files chosen list and try again.')
+            msg.setWindowTitle("Info")
+            msg.exec_()
+        else:
+            for item in items:
+                self.listwidget.takeItem(self.listwidget.row(item))
 
     def process_document(self):
         db.connect(reuse_if_open=True)
