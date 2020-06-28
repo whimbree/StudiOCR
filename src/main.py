@@ -95,8 +95,8 @@ class OcrProc(Process):
             for idx, filepath in enumerate(filepaths):
                 ocr.process_image(filepath)
                 self.to_output.send(((idx / page_length)*100, None))
-
-            self.to_output.send((100, ocr.commit_data()))
+            doc_id = ocr.commit_data()
+            self.to_output.send((100, doc_id))
 
 
 class MainWindow(Qw.QMainWindow):
@@ -168,6 +168,8 @@ class ListDocuments(Qw.QWidget):
     def __init__(self, new_doc_cb, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
+        db.connect(reuse_if_open=True)
+
         self._filter = ''
 
         self.new_doc_cb = new_doc_cb
@@ -180,6 +182,8 @@ class ListDocuments(Qw.QWidget):
         self._layout = Qw.QVBoxLayout()
 
         self.doc_grid = Qw.QGridLayout()
+        self.scroll_area = Qw.QScrollArea()
+        self.scroll_area.setWidgetResizable(True)
         self.ui_box = Qw.QHBoxLayout()
 
         self._docButtons = []
@@ -192,9 +196,14 @@ class ListDocuments(Qw.QWidget):
         self.doc_search.setChecked(True)
         self.ocr_search = Qw.QRadioButton("OCR")
 
+        self.remove_mode = Qw.QPushButton("Enable remove mode")
+        self.remove_mode.setCheckable(True)
+        self.remove_mode.toggled.connect(self.set_remove_mode)
+
         self.ui_box.addWidget(self.doc_search)
         self.ui_box.addWidget(self.ocr_search)
         self.ui_box.addWidget(self.search_bar)
+        self.ui_box.addWidget(self.remove_mode)
 
         # self._layout.addWidget(self.search_bar)
 
@@ -206,6 +215,7 @@ class ListDocuments(Qw.QWidget):
             doc_button = SingleDocumentButton(name, img, doc)
             doc_button.pressed.connect(
                 lambda doc=doc: self.create_doc_window(doc))
+            doc_button.setVisible(True)
             self._docButtons.append(doc_button)
 
         self.new_doc_button = SingleDocumentButton(
@@ -213,72 +223,110 @@ class ListDocuments(Qw.QWidget):
         self.new_doc_button.pressed.connect(
             lambda: self.create_new_doc_window())
 
+        self._active_docs = self._docButtons
+
         self.render_doc_grid()
 
         self._layout.addLayout(self.ui_box)
-        self._layout.addLayout(self.doc_grid)
+        self._layout.addWidget(self.scroll_area)
 
         self.setLayout(self._layout)
+        db.close()
+
+    def set_remove_mode(self):
+        if self.remove_mode.isChecked():
+            self.remove_mode.setText("Disable remove mode")
+        else:
+            self.remove_mode.setText("Enable remove mode")
+        self.render_doc_grid()
 
     def render_doc_grid(self):
         # clear the doc_grid, not deleting widgets since they will be used later for repopulation
         while self.doc_grid.count():
-            self.doc_grid.takeAt(0)
+            # must make the removed widget a child of the class, so that it does not get garbage collected
+            self.doc_grid.takeAt(0).widget().setParent(self)
         # repopulate the doc_grid
         idx = 0
-        for button in self._docButtons:
+        # hide the new document button if remove mode is enabled
+        if not self.remove_mode.isChecked():
+            self.doc_grid.addWidget(
+                self.new_doc_button, idx / 4, idx % 4, 1, 1)
+            idx += 1
+        self._active_docs.sort(key=lambda button:button.name.lower())
+        for button in self._active_docs:
             self.doc_grid.addWidget(button, idx / 4, idx % 4, 1, 1)
             idx += 1
-        self.doc_grid.addWidget(self.new_doc_button, idx / 4, idx % 4, 1, 1)
+        temp_widget = Qw.QWidget()
+        temp_widget.setLayout(self.doc_grid)
+        self.scroll_area.setWidget(temp_widget)
 
     @Qc.Slot(int)
     def display_new_document(self, doc_id):
-        doc = None
-        # TODO: Fix horrible solution, use mutex maybe?
-        # hacky solution, database is updated in another process, keep polling the database
-        # until the information that the other process inserted becomes available
-        while doc is None:
-            try:
-                doc = OcrDocument.get(OcrDocument.id == doc_id)
-            except IndexError:
-                break
+        db.connect(reuse_if_open=True)
+        doc = OcrDocument.get(OcrDocument.id == doc_id)
         # assuming that each doc will surely have at least one page
         doc_button = SingleDocumentButton(doc.name, doc.pages[0].image, doc)
         doc_button.pressed.connect(
             lambda doc=doc: self.create_doc_window(doc))
         self._docButtons.append(doc_button)
         self.render_doc_grid()
+        db.close()
 
     def create_doc_window(self, doc):
-        if(self.ocr_search.isChecked()):
-            self.doc_window = DocWindow(doc, self._filter)
+        db.connect(reuse_if_open=True)
+        # If remove mode is checked, then prompt and remove the document
+        if self.remove_mode.isChecked():
+            confirm = Qw.QMessageBox()
+            confirm.setWindowTitle(f"Remove Document: {doc.name}")
+            confirm.setText(
+                f"Are you sure you want to delete document: {doc.name}?")
+            confirm.setIcon(Qw.QMessageBox.Question)
+            confirm.setStandardButtons(Qw.QMessageBox.Yes)
+            confirm.addButton(Qw.QMessageBox.No)
+            confirm.setDefaultButton(Qw.QMessageBox.No)
+            if confirm.exec_() == Qw.QMessageBox.Yes:
+                button_to_remove = None
+                for button in self._docButtons:
+                    if button.doc == doc:
+                        button_to_remove = button
+                        break
+                self.doc_grid.removeWidget(button_to_remove)
+                self._docButtons.remove(button_to_remove)
+                self.render_doc_grid()
+                print(doc.delete_document())
         else:
-            self.doc_window = DocWindow(doc)
-        self.doc_window.show()
+            if self.ocr_search.isChecked():
+                self.doc_window = DocWindow(doc, self._filter)
+            else:
+                self.doc_window = DocWindow(doc)
+            self.doc_window.show()
+        db.close()
 
     def create_new_doc_window(self):
         self.new_doc_window = NewDocWindow(self.new_doc_cb)
         self.new_doc_window.show()
 
     def update_filter(self):
+        db.connect(reuse_if_open=True)
         self._filter = self.search_bar.text()
 
+        self._active_docs = []
         if(self.doc_search.isChecked()):
             for button in self._docButtons:
                 if(self._filter.lower() in button.name.lower()):
-                    button.show()
-                else:
-                    button.hide()
+                    self._active_docs.append(button)
         elif(self.ocr_search.isChecked()):
             for button in self._docButtons:
+                text_found = False
                 for page in button.doc.pages:
                     for block in page.blocks:
                         if(self._filter.lower() in block.text.lower()):
-                            button.show()
-                            break
-                        else:
-                            button.hide()
-
+                            if(not text_found):
+                                self._active_docs.append(button)
+                                text_found = True
+                                break
+        db.close()
+        self.render_doc_grid()
 
 class NewDocWindow(Qw.QWidget):
     def __init__(self, new_doc_cb, *args, **kwargs):
@@ -302,10 +350,11 @@ class NewDocOptions(Qw.QWidget):
         self.close_cb = close_cb
         self.new_doc_cb = new_doc_cb
 
-        self.file_names = []
-
-        self.choose_file_button = Qw.QPushButton("Choose images")
+        self.choose_file_button = Qw.QPushButton("Add files")
         self.choose_file_button.clicked.connect(self.choose_files)
+
+        self.remove_file_button = Qw.QPushButton("Remove files")
+        self.remove_file_button.clicked.connect(self.remove_files)
 
         self.options = Qw.QGroupBox("Options")
         self.name_label = Qw.QLabel("Document Name:")
@@ -332,6 +381,12 @@ class NewDocOptions(Qw.QWidget):
 
         self.file_names_label = Qw.QLabel("Files Chosen: ")
         self.listwidget = Qw.QListWidget()
+        self.listwidget.setDragEnabled(True)
+        self.listwidget.setAcceptDrops(True)
+        self.listwidget.setDropIndicatorShown(True)
+        self.listwidget.setDragDropMode(Qw.QAbstractItemView.InternalMove)
+        self.listwidget.setSelectionMode(
+            Qw.QAbstractItemView.ExtendedSelection)
 
         self.remove = Qw.QPushButton("Remove Document")
         self.remove.clicked.connect(self.remove_document)
@@ -341,10 +396,11 @@ class NewDocOptions(Qw.QWidget):
 
         layout = Qw.QVBoxLayout()
         layout.addWidget(self.choose_file_button)
-        layout.addWidget(self.options)
+        layout.addWidget(self.remove_file_button)
         layout.addWidget(self.file_names_label)
         layout.addWidget(self.listwidget)
         layout.addWidget(self.remove)
+        layout.addWidget(self.options)
         layout.addWidget(self.submit, alignment=Qc.Qt.AlignBottom)
         self.setLayout(layout)
 
@@ -352,19 +408,27 @@ class NewDocOptions(Qw.QWidget):
         file_dialog = Qw.QFileDialog(self)
         file_dialog.setFileMode(Qw.QFileDialog.ExistingFiles)
         file_dialog.setNameFilter(
-            "Images (*.png *.xpm *.jpg);;PDF Files (*.pdf)")
-        file_dialog.selectNameFilter("Images (*.png *.xpm *.jpg)")
+            "Images (*.png *.jpg);;PDF Files (*.pdf)")
+        file_dialog.selectNameFilter("Images (*.png *.jpg)")
 
         if file_dialog.exec_():
-            self.file_names = file_dialog.selectedFiles()
+            file_names = file_dialog.selectedFiles()
 
-        for i in range(len(self.file_names)):
-            self.listwidget.insertItem(i, self.file_names[i])
-        # self.listwidget.clicked.connect(self.clicked)
+        for file_name in file_names:
+            self.listwidget.insertItem(self.listwidget.count(), file_name)
+
+    def remove_files(self):
+        items = self.listwidget.selectedItems()
+        for item in items:
+            self.listwidget.takeItem(self.listwidget.row(item))
 
     def process_document(self):
+        db.connect(reuse_if_open=True)
         name = self.name_edit.text()
         query = OcrDocument.select().where(OcrDocument.name == name)
+        file_names = []
+        for index in range(self.listwidget.count()):
+            file_names.append(self.listwidget.item(index).text())
         if query.exists() or len(name) == 0:
             msg = Qw.QMessageBox()
             msg.setIcon(Qw.QMessageBox.Warning)
@@ -377,7 +441,7 @@ class NewDocOptions(Qw.QWidget):
                     'There is already a document with that name.')
             msg.setWindowTitle("Error")
             msg.exec_()
-        elif len(self.file_names) == 0:
+        elif len(file_names) == 0:
             msg = Qw.QMessageBox()
             msg.setIcon(Qw.QMessageBox.Warning)
             msg.setText("No files were selected as part of the document.")
@@ -386,8 +450,9 @@ class NewDocOptions(Qw.QWidget):
             msg.setWindowTitle("Error")
             msg.exec_()
         else:
-            self.new_doc_cb(name, self.file_names)
+            self.new_doc_cb(name, file_names)
             self.close_cb()
+        db.close()
 
     #reference: https://stackoverflow.com/questions/23835847/how-to-remove-item-from-qlistwidget
     def remove_document(self):
@@ -424,6 +489,7 @@ class DocWindow(Qw.QWidget):
         :param filter: Filter from main window
         """
         super().__init__(*args, **kwargs)
+        db.connect(reuse_if_open=True)
         self.setWindowTitle(doc.name)
 
         self.setFixedWidth(500)
@@ -469,6 +535,7 @@ class DocWindow(Qw.QWidget):
 
         layout.addLayout(button_group)
         self.setLayout(layout)
+        db.close()
 
     def next_page(self):
         """
@@ -509,6 +576,7 @@ class DocWindow(Qw.QWidget):
         Function that updates the rectangles on the image based on self._currPage and self._filter
         :return: NONE
         """
+        db.connect(reuse_if_open=True)
         # if there is no search criteria, display original image of current page
         if not self._filter:
             img = Qg.QImage.fromData(self._pages[self._currPage].image)
@@ -555,6 +623,7 @@ class DocWindow(Qw.QWidget):
                 self.im = qp.scaled(
                     2550 / 5, 3300 / 5, Qc.Qt.KeepAspectRatio, Qc.Qt.SmoothTransformation)
                 self.label.setPixmap(self.im)
+        db.close()
 
 
 class SingleDocumentButton(Qw.QToolButton):
