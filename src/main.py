@@ -299,10 +299,11 @@ class NewDocOptions(Qw.QWidget):
         self.close_cb = close_cb
         self.new_doc_cb = new_doc_cb
 
-        self.file_names = []
-
-        self.choose_file_button = Qw.QPushButton("Choose images")
+        self.choose_file_button = Qw.QPushButton("Add files")
         self.choose_file_button.clicked.connect(self.choose_files)
+
+        self.remove_file_button = Qw.QPushButton("Remove files")
+        self.remove_file_button.clicked.connect(self.remove_files)
 
         self.options = Qw.QGroupBox("Options")
         self.name_label = Qw.QLabel("Document Name:")
@@ -329,15 +330,23 @@ class NewDocOptions(Qw.QWidget):
 
         self.file_names_label = Qw.QLabel("Files Chosen: ")
         self.listwidget = Qw.QListWidget()
+        self.listwidget.setDragEnabled(True)
+        self.listwidget.setAcceptDrops(True)
+        self.listwidget.setDropIndicatorShown(True)
+        self.listwidget.setDragDropMode(Qw.QAbstractItemView.InternalMove)
+        self.listwidget.setSelectionMode(
+            Qw.QAbstractItemView.ExtendedSelection)
 
         self.submit = Qw.QPushButton("Process Document")
         self.submit.clicked.connect(self.process_document)
 
         layout = Qw.QVBoxLayout()
         layout.addWidget(self.choose_file_button)
-        layout.addWidget(self.options)
+        layout.addWidget(self.remove_file_button)
         layout.addWidget(self.file_names_label)
         layout.addWidget(self.listwidget)
+        layout.addWidget(self.options)
+
         layout.addWidget(self.submit, alignment=Qc.Qt.AlignBottom)
         self.setLayout(layout)
 
@@ -345,20 +354,27 @@ class NewDocOptions(Qw.QWidget):
         file_dialog = Qw.QFileDialog(self)
         file_dialog.setFileMode(Qw.QFileDialog.ExistingFiles)
         file_dialog.setNameFilter(
-            "Images (*.png *.xpm *.jpg);;PDF Files (*.pdf)")
-        file_dialog.selectNameFilter("Images (*.png *.xpm *.jpg)")
+            "Images (*.png *.jpg);;PDF Files (*.pdf)")
+        file_dialog.selectNameFilter("Images (*.png *.jpg)")
 
         if file_dialog.exec_():
-            self.file_names = file_dialog.selectedFiles()
+            file_names = file_dialog.selectedFiles()
 
-        for i in range(len(self.file_names)):
-            self.listwidget.insertItem(i, self.file_names[i])
-        # self.listwidget.clicked.connect(self.clicked)
+        for file_name in file_names:
+            self.listwidget.insertItem(self.listwidget.count(), file_name)
+
+    def remove_files(self):
+        items = self.listwidget.selectedItems()
+        for item in items:
+            self.listwidget.takeItem(self.listwidget.row(item))
 
     def process_document(self):
         db.connect(reuse_if_open=True)
         name = self.name_edit.text()
         query = OcrDocument.select().where(OcrDocument.name == name)
+        file_names = []
+        for index in range(self.listwidget.count()):
+            file_names.append(self.listwidget.item(index).text())
         if query.exists() or len(name) == 0:
             msg = Qw.QMessageBox()
             msg.setIcon(Qw.QMessageBox.Warning)
@@ -371,7 +387,7 @@ class NewDocOptions(Qw.QWidget):
                     'There is already a document with that name.')
             msg.setWindowTitle("Error")
             msg.exec_()
-        elif len(self.file_names) == 0:
+        elif len(file_names) == 0:
             msg = Qw.QMessageBox()
             msg.setIcon(Qw.QMessageBox.Warning)
             msg.setText("No files were selected as part of the document.")
@@ -380,7 +396,7 @@ class NewDocOptions(Qw.QWidget):
             msg.setWindowTitle("Error")
             msg.exec_()
         else:
-            self.new_doc_cb(name, self.file_names)
+            self.new_doc_cb(name, file_names)
             self.close_cb()
         db.close()
 
