@@ -2,7 +2,7 @@ import cv2
 import pytesseract
 from pytesseract import Output
 
-from db import *
+from db import (db, OcrDocument, OcrPage, OcrBlock, create_tables)
 
 # This entire file must be redone with objects
 # This is just a quick demo to show how to get started with OCR
@@ -22,7 +22,7 @@ class OcrProcess():
         # Maybe further postprocessing is needed for a better result
         # TODO: allow users to specify a custom config?
         # TODO: allow users to specify fast vs. best models
-        custom_config = r'-l eng --psm 6 --tessdata-dir "../tessdata/best"'
+        custom_config = r'-l eng --psm 3 --tessdata-dir "../tessdata/fast"'
         image = cv2.imread(image_filepath)
         # Convert to RGB colorspace for Tesseract OCR
         image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
@@ -34,6 +34,7 @@ class OcrProcess():
     def commit_data(self):
         # If the database doesn't exist yet, generate it
         create_tables()
+        db.connect(reuse_if_open=True)
         with db.atomic():
             # Create a new entry for the document to link the pages and boxes to
             doc = OcrDocument.create(name=self._name)
@@ -41,22 +42,22 @@ class OcrProcess():
             for i, (page_data, image_file) in enumerate(self._data):
                 page = OcrPage.create(
                     number=i, image=image_file, document=doc.id)
-                for i in range(len(page_data)):
+                for i in range(len(page_data['text'])):
                     text_nospace = page_data['text'][i]
                     text_nospace.replace(" ", "")
                     if len(text_nospace) > 0:
                         OcrBlock.create(page=page.id, left=page_data['left'][i], top=page_data['top'][i],
                                         width=page_data['width'][i], height=page_data['height'][i],
                                         conf=page_data['conf'][i], text=page_data['text'][i])
+        db.close()
         return self.doc_id
 
 # Usage
 #ocr = OcrProcess('test6')
-#ocr.process_image('../src/OCR/einstein_quote.jpg')
-#ocr.process_image('../src/OCR/generatedtext.jpg')
-#ocr.process_image('../src/OCR/handwritten_digits.jpg')
-#ocr.commit_data()
-
+# ocr.process_image('../src/OCR/einstein_quote.jpg')
+# ocr.process_image('../src/OCR/generatedtext.jpg')
+# ocr.process_image('../src/OCR/handwritten_digits.jpg')
+# ocr.commit_data()
 
 
 # Utility function to rescale an image while maintaining aspect ratio, is this the right place for it?

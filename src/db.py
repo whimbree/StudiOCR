@@ -1,13 +1,14 @@
-from peewee import Model, PrimaryKeyField, CharField, IntegerField, BlobField, ForeignKeyField, TextField
+from peewee import (Model, PrimaryKeyField, CharField,
+                    IntegerField, BlobField, ForeignKeyField, TextField)
 from playhouse.sqlite_ext import SqliteExtDatabase
 
 # Should likely change where the database files are stored
 DATABASE = 'ocr_files.db'
 
 # Do we need c extensions?
-db = SqliteExtDatabase(DATABASE, c_extensions=False, pragmas=(
-    ('journal_mode', 'wal'),  # Use WAL-mode
-    ('foreign_keys', 1)))  # Enforce foreign-key constraints
+db = SqliteExtDatabase(DATABASE, autoconnect=False, c_extensions=False, pragmas={
+    'journal_mode': 'wal',  # Use WAL-mode
+    'foreign_keys': 1})  # Enforce foreign-key constraints
 
 
 class BaseModel(Model):

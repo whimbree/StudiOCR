@@ -11,7 +11,6 @@ import numpy as np
 from ocr import OcrProcess
 
 from db import (db, OcrDocument, OcrPage, OcrBlock, create_tables)
-import peewee
 import wsl
 
 # References
@@ -96,8 +95,8 @@ class OcrProc(Process):
             for idx, filepath in enumerate(filepaths):
                 ocr.process_image(filepath)
                 self.to_output.send(((idx / page_length)*100, None))
-
-            self.to_output.send((100, ocr.commit_data()))
+            doc_id = ocr.commit_data()
+            self.to_output.send((100, doc_id))
 
 
 class MainWindow(Qw.QMainWindow):
@@ -161,6 +160,8 @@ class ListDocuments(Qw.QWidget):
     def __init__(self, new_doc_cb, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
+        db.connect(reuse_if_open=True)
+
         self._filter = ''
 
         self.new_doc_cb = new_doc_cb
@@ -212,6 +213,7 @@ class ListDocuments(Qw.QWidget):
         self._layout.addLayout(self.doc_grid)
 
         self.setLayout(self._layout)
+        db.close()
 
     def render_doc_grid(self):
         # clear the doc_grid, not deleting widgets since they will be used later for repopulation
@@ -219,30 +221,23 @@ class ListDocuments(Qw.QWidget):
             self.doc_grid.takeAt(0)
         # repopulate the doc_grid
         idx = 0
+        self.doc_grid.addWidget(self.new_doc_button, idx / 4, idx % 4, 1, 1)
+        idx += 1
         for button in self._docButtons:
             self.doc_grid.addWidget(button, idx / 4, idx % 4, 1, 1)
             idx += 1
-        self.doc_grid.addWidget(self.new_doc_button, idx / 4, idx % 4, 1, 1)
 
     @Qc.Slot(int)
     def display_new_document(self, doc_id):
-        doc = None
-        # TODO: Fix horrible solution, use mutex maybe?
-        # hacky solution, database is updated in another process, keep polling the database
-        # until the information that the other process inserted becomes available
-        while doc is None:
-            try:
-                doc = OcrDocument.get(OcrDocument.id == doc_id)
-            except IndexError:
-                break
-            except peewee.DoesNotExist:
-                break
+        db.connect(reuse_if_open=True)
+        doc = OcrDocument.get(OcrDocument.id == doc_id)
         # assuming that each doc will surely have at least one page
         doc_button = SingleDocumentButton(doc.name, doc.pages[0].image, doc)
         doc_button.pressed.connect(
             lambda doc=doc: self.create_doc_window(doc))
         self._docButtons.append(doc_button)
         self.render_doc_grid()
+        db.close()
 
     def create_doc_window(self, doc):
         if(self.ocr_search.isChecked()):
@@ -256,6 +251,7 @@ class ListDocuments(Qw.QWidget):
         self.new_doc_window.show()
 
     def update_filter(self):
+        db.connect(reuse_if_open=True)
         self._filter = self.search_bar.text()
 
         if(self.doc_search.isChecked()):
@@ -273,6 +269,7 @@ class ListDocuments(Qw.QWidget):
                             break
                         else:
                             button.hide()
+        db.close()
 
 
 class NewDocWindow(Qw.QWidget):
@@ -354,6 +351,7 @@ class NewDocOptions(Qw.QWidget):
         # self.listwidget.clicked.connect(self.clicked)
 
     def process_document(self):
+        db.connect(reuse_if_open=True)
         name = self.name_edit.text()
         query = OcrDocument.select().where(OcrDocument.name == name)
         if query.exists() or len(name) == 0:
@@ -379,6 +377,7 @@ class NewDocOptions(Qw.QWidget):
         else:
             self.new_doc_cb(name, self.file_names)
             self.close_cb()
+        db.close()
 
     def display_info(self):
         print("Info clicked")
@@ -400,6 +399,7 @@ class DocWindow(Qw.QWidget):
         :param filter: Filter from main window
         """
         super().__init__(*args, **kwargs)
+        db.connect(reuse_if_open=True)
         self.setWindowTitle(doc.name)
 
         self.setFixedWidth(500)
@@ -445,6 +445,7 @@ class DocWindow(Qw.QWidget):
 
         layout.addLayout(button_group)
         self.setLayout(layout)
+        db.close()
 
     def next_page(self):
         """
@@ -485,6 +486,7 @@ class DocWindow(Qw.QWidget):
         Function that updates the rectangles on the image based on self._currPage and self._filter
         :return: NONE
         """
+        db.connect(reuse_if_open=True)
         # if there is no search criteria, display original image of current page
         if not self._filter:
             img = Qg.QImage.fromData(self._pages[self._currPage].image)
@@ -530,6 +532,7 @@ class DocWindow(Qw.QWidget):
                 self.im = qp.scaled(
                     2550 / 5, 3300 / 5, Qc.Qt.KeepAspectRatio, Qc.Qt.SmoothTransformation)
                 self.label.setPixmap(self.im)
+        db.close()
 
 
 class SingleDocumentButton(Qw.QToolButton):
