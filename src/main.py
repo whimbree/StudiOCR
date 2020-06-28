@@ -152,7 +152,7 @@ class MainUI(Qw.QWidget):
 
         self.layout = Qw.QVBoxLayout()
         self.layout.addWidget(self.welcome_label, alignment=Qc.Qt.AlignTop)
-        self.layout.addWidget(self.documents, alignment=Qc.Qt.AlignTop)
+        self.layout.addWidget(self.documents)
         self.setLayout(self.layout)
 
 
