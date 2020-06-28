@@ -174,6 +174,8 @@ class ListDocuments(Qw.QWidget):
         self._layout = Qw.QVBoxLayout()
 
         self.doc_grid = Qw.QGridLayout()
+        self.scroll_area = Qw.QScrollArea()
+        self.scroll_area.setWidgetResizable(True)
         self.ui_box = Qw.QHBoxLayout()
 
         self._docButtons = []
@@ -210,7 +212,7 @@ class ListDocuments(Qw.QWidget):
         self.render_doc_grid()
 
         self._layout.addLayout(self.ui_box)
-        self._layout.addLayout(self.doc_grid)
+        self._layout.addWidget(self.scroll_area)
 
         self.setLayout(self._layout)
         db.close()
@@ -226,6 +228,9 @@ class ListDocuments(Qw.QWidget):
         for button in self._docButtons:
             self.doc_grid.addWidget(button, idx / 4, idx % 4, 1, 1)
             idx += 1
+        temp_widget = Qw.QWidget()
+        temp_widget.setLayout(self.doc_grid)
+        self.scroll_area.setWidget(temp_widget)
 
     @Qc.Slot(int)
     def display_new_document(self, doc_id):
