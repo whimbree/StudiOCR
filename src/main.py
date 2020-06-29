@@ -4,6 +4,7 @@ from PySide2 import QtGui as Qg
 
 from multiprocessing import Process, Queue, Pipe
 
+import qdarkstyle
 import sys
 import random
 import numpy as np
@@ -36,6 +37,8 @@ def main():
     status_emitter = StatusEmitter(main_pipe)
 
     window = MainWindow(queue, status_emitter)  # Create main window
+
+    app.setStyleSheet(qdarkstyle.load_stylesheet(qt_api='pyside2'))
 
     window.show()  # Show main window
 
@@ -482,8 +485,8 @@ class DocWindow(Qw.QWidget):
         db.connect(reuse_if_open=True)
         self.setWindowTitle(doc.name)
 
-        self.setFixedWidth(500)
-        self.setFixedHeight(800)
+        # self.setFixedWidth(500)
+        # self.setFixedHeight(800)
 
         self._doc = doc
         self._filter = filter
@@ -512,7 +515,7 @@ class DocWindow(Qw.QWidget):
             self.im = qp.scaled(2550 / 5, 3300 / 5,
                                 Qc.Qt.KeepAspectRatio, Qc.Qt.SmoothTransformation)
             self.label.setPixmap(self.im)
-        layout.addWidget(self.label)
+        layout.addWidget(self.label, alignment=Qc.Qt.AlignCenter)
 
         # create button group for prev and next page buttons
         self.next_page_button = Qw.QPushButton("Next Page")
@@ -582,7 +585,6 @@ class DocWindow(Qw.QWidget):
                 # if the filter value is contained in the block text, add block to list
                 for word in self._filter.lower().split():
                     if(word in block.text.lower()):
-                        print(block.text, block.page_id)
                         self._listBlocks.append(block)
 
             # for each block containing the search criteria, draw rectangles on the image
