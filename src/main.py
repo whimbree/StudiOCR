@@ -1,19 +1,16 @@
+import wsl
+from db import (db, OcrDocument, OcrPage, OcrBlock, create_tables)
+from ocr import OcrProcess
+import numpy as np
+import random
+import sys
+import qdarkstyle
+from collections import OrderedDict
 from PySide2 import QtCore as Qc
 from PySide2 import QtWidgets as Qw
 from PySide2 import QtGui as Qg
 
 from multiprocessing import Process, Queue, Pipe
-
-from collections import OrderedDict
-
-import sys
-import random
-import numpy as np
-
-from ocr import OcrProcess
-
-from db import (db, OcrDocument, OcrPage, OcrBlock, create_tables)
-import wsl
 
 # References
 # https://doc.qt.io/qtforpython/
@@ -38,6 +35,8 @@ def main():
     status_emitter = StatusEmitter(main_pipe)
 
     window = MainWindow(queue, status_emitter)  # Create main window
+
+    app.setStyleSheet(qdarkstyle.load_stylesheet(qt_api='pyside2'))
 
     window.show()  # Show main window
 
@@ -484,8 +483,8 @@ class DocWindow(Qw.QWidget):
         db.connect(reuse_if_open=True)
         self.setWindowTitle(doc.name)
 
-        self.setFixedWidth(500)
-        self.setFixedHeight(800)
+        # self.setFixedWidth(500)
+        # self.setFixedHeight(800)
 
         self._doc = doc
         self._filter = filter
@@ -524,7 +523,7 @@ class DocWindow(Qw.QWidget):
             self.im = qp.scaled(2550 / 5, 3300 / 5,
                                 Qc.Qt.KeepAspectRatio, Qc.Qt.SmoothTransformation)
             self.label.setPixmap(self.im)
-        self._layout.addWidget(self.label)
+        self._layout.addWidget(self.label, alignment=Qc.Qt.AlignCenter)
 
         # create button group for prev and next page buttons
         self.next_page_button = Qw.QPushButton("Next Page")
