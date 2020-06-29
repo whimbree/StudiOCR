@@ -483,9 +483,6 @@ class DocWindow(Qw.QWidget):
         db.connect(reuse_if_open=True)
         self.setWindowTitle(doc.name)
 
-        # self.setFixedWidth(500)
-        # self.setFixedHeight(800)
-
         self._doc = doc
         self._filter = filter
         self._currPage = 0
@@ -510,33 +507,47 @@ class DocWindow(Qw.QWidget):
         self._options.addWidget(self.filter_mode, alignment=Qc.Qt.AlignTop)
         self._layout.addLayout(self._options, alignment=Qc.Qt.AlignTop)
 
+        self._pixmap = Qg.QPixmap()
+        self._label_height_offset = 100
+        self._label_width_offset = 40
+
         self.label = Qw.QLabel()
         # if filter passed through from main window, set the search bar text and update window
-        if (self._filter):
+        if self._filter:
             self.search_bar.setText(self._filter)
-            self.im = Qg.QPixmap()
             self.update_filter()
         # display original image of first page
         else:
-            img = Qg.QImage.fromData(self._pages[0].image)
-            qp = Qg.QPixmap.fromImage(img)
-            self.im = qp.scaled(2550 / 5, 3300 / 5,
-                                Qc.Qt.KeepAspectRatio, Qc.Qt.SmoothTransformation)
-            self.label.setPixmap(self.im)
+            self.update_image()
         self._layout.addWidget(self.label, alignment=Qc.Qt.AlignCenter)
 
         # create button group for prev and next page buttons
         self.next_page_button = Qw.QPushButton("Next Page")
+        self.next_page_button.setSizePolicy(
+            Qw.QSizePolicy.MinimumExpanding, Qw.QSizePolicy.Fixed)
         self.next_page_button.clicked.connect(self.next_page)
         self.prev_page_button = Qw.QPushButton("Previous Page")
+        self.prev_page_button.setSizePolicy(
+            Qw.QSizePolicy.MinimumExpanding, Qw.QSizePolicy.Fixed)
         self.prev_page_button.clicked.connect(self.prev_page)
-        button_group = Qw.QHBoxLayout()
-        button_group.addWidget(self.prev_page_button)
-        button_group.addWidget(self.next_page_button)
+        self.page_number_label = Qw.QLabel(str(self._currPage+1))
+        self._button_group = Qw.QHBoxLayout()
+        self._button_group.addWidget(self.prev_page_button)
+        self._button_group.addWidget(self.page_number_label)
+        self._button_group.addWidget(self.next_page_button)
 
-        self._layout.addLayout(button_group)
+        self._layout.addLayout(self._button_group)
         self.setLayout(self._layout)
         db.close()
+
+    def resizeEvent(self, e):
+        pixmap_scaled = self._pixmap.scaled(
+            self.width() - self._label_width_offset, self.height() - self._label_height_offset,
+            Qc.Qt.KeepAspectRatio, Qc.Qt.SmoothTransformation)
+        self.label.setPixmap(pixmap_scaled)
+        self.label.setSizePolicy(
+            Qw.QSizePolicy.Preferred, Qw.QSizePolicy.Preferred)
+        super().resizeEvent(e)
 
     def set_filter_mode(self):
         if self.filter_mode.isChecked():
@@ -569,12 +580,14 @@ class DocWindow(Qw.QWidget):
                     if page_number == self._currPage:
                         break
                 self._currPage = key_list[index + 1]
+                self.page_number_label.setText(str(self._currPage+1))
                 self.update_image()
         # otherwise, perform as normal
         else:
             # if not at end, then go forward a page
             if self._currPage + 1 != self._pages_len:
                 self._currPage += 1
+                self.page_number_label.setText(str(self._currPage+1))
             self.update_image()
 
     def prev_page(self):
@@ -596,12 +609,14 @@ class DocWindow(Qw.QWidget):
                     if page_number == self._currPage:
                         break
                 self._currPage = key_list[index - 1]
+                self.page_number_label.setText(str(self._currPage+1))
                 self.update_image()
         # otherwise, perform as normal
         else:
             # go not at beginning, then go back a page
             if self._currPage != 0:
                 self._currPage -= 1
+                self.page_number_label.setText(str(self._currPage+1))
             self.update_image()
 
     def update_filter(self):
@@ -618,12 +633,13 @@ class DocWindow(Qw.QWidget):
 
     def jump_first_matched_page(self):
         """
-        Jump to the first matched page if there are matches and not currently on a matched page, 
+        Jump to the first matched page if there are matches and not currently on a matched page,
         otherwise do nothing
         :return: NONE
         """
         if len(self._filtered_page_indexes) != 0 and self._currPage not in self._filtered_page_indexes.keys():
             self._currPage = list(self._filtered_page_indexes.keys())[0]
+            self.page_number_label.setText(str(self._currPage+1))
             self.update_image()
 
     def exec_filter(self):
@@ -658,15 +674,15 @@ class DocWindow(Qw.QWidget):
         # if there is no search criteria, display original image of current page
         if not self._filter or self._currPage not in self._filtered_page_indexes.keys():
             img = Qg.QImage.fromData(self._pages[self._currPage].image)
-            qp = Qg.QPixmap.fromImage(img)
-            self.im = qp.scaled(2550 / 5, 3300 / 5,
-                                Qc.Qt.KeepAspectRatio, Qc.Qt.SmoothTransformation)
-            self.label.setPixmap(self.im)
+            self._pixmap = Qg.QPixmap.fromImage(img)
+            pixmap_scaled = self._pixmap.scaled(self.width() - self._label_width_offset, self.height() - self._label_height_offset,
+                                                Qc.Qt.KeepAspectRatio, Qc.Qt.SmoothTransformation)
+            self.label.setPixmap(pixmap_scaled)
         else:
             # for each block containing the search criteria, draw rectangles on the image
             block_list = self._filtered_page_indexes[self._currPage]
             img = Qg.QImage.fromData(self._pages[self._currPage].image)
-            pixmap = Qg.QPixmap.fromImage(img)
+            self._pixmap = Qg.QPixmap.fromImage(img)
             for block in block_list:
                 # set color of rectangle based on confidence level of OCR
                 if block.conf >= 80:
@@ -675,15 +691,15 @@ class DocWindow(Qw.QWidget):
                     color = Qc.Qt.blue
                 else:
                     color = Qc.Qt.red
-                painter = Qg.QPainter(pixmap)
+                painter = Qg.QPainter(self._pixmap)
                 painter.setPen(Qg.QPen(color, 3, Qc.Qt.SolidLine))
                 painter.drawRect(block.left, block.top,
                                  block.width, block.height)
                 painter.end()
 
-            self.im = pixmap.scaled(
-                2550 / 5, 3300 / 5, Qc.Qt.KeepAspectRatio, Qc.Qt.SmoothTransformation)
-            self.label.setPixmap(self.im)
+            pixmap_scaled = self._pixmap.scaled(self.width() - self._label_width_offset, self.height() - self._label_height_offset,
+                                                Qc.Qt.KeepAspectRatio, Qc.Qt.SmoothTransformation)
+            self.label.setPixmap(pixmap_scaled)
         db.close()
 
 
