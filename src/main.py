@@ -4,6 +4,8 @@ from PySide2 import QtGui as Qg
 
 from multiprocessing import Process, Queue, Pipe
 
+from collections import OrderedDict
+
 import sys
 import random
 import numpy as np
@@ -489,15 +491,25 @@ class DocWindow(Qw.QWidget):
         self._filter = filter
         self._currPage = 0
         self._pages = self._doc.pages
-        self.update_page_blocks()
-        self._listBlocks = []
+        self._pages_len = len(self._pages)
+        # Store key as page index, value as list of blocks
+        self._filtered_page_indexes = OrderedDict()
 
-        layout = Qw.QVBoxLayout()
+        self._layout = Qw.QVBoxLayout()
+
+        self._options = Qw.QHBoxLayout()
 
         self.search_bar = Qw.QLineEdit()
         self.search_bar.setPlaceholderText("Search through notes...")
         self.search_bar.textChanged.connect(self.update_filter)
-        layout.addWidget(self.search_bar, alignment=Qc.Qt.AlignTop)
+
+        self.filter_mode = Qw.QPushButton("Show matching pages")
+        self.filter_mode.setCheckable(True)
+        self.filter_mode.toggled.connect(self.set_filter_mode)
+
+        self._options.addWidget(self.search_bar, alignment=Qc.Qt.AlignTop)
+        self._options.addWidget(self.filter_mode, alignment=Qc.Qt.AlignTop)
+        self._layout.addLayout(self._options, alignment=Qc.Qt.AlignTop)
 
         self.label = Qw.QLabel()
         # if filter passed through from main window, set the search bar text and update window
@@ -512,7 +524,7 @@ class DocWindow(Qw.QWidget):
             self.im = qp.scaled(2550 / 5, 3300 / 5,
                                 Qc.Qt.KeepAspectRatio, Qc.Qt.SmoothTransformation)
             self.label.setPixmap(self.im)
-        layout.addWidget(self.label)
+        self._layout.addWidget(self.label)
 
         # create button group for prev and next page buttons
         self.next_page_button = Qw.QPushButton("Next Page")
@@ -523,9 +535,21 @@ class DocWindow(Qw.QWidget):
         button_group.addWidget(self.prev_page_button)
         button_group.addWidget(self.next_page_button)
 
-        layout.addLayout(button_group)
-        self.setLayout(layout)
+        self._layout.addLayout(button_group)
+        self.setLayout(self._layout)
         db.close()
+
+    def set_filter_mode(self):
+        if self.filter_mode.isChecked():
+            self.filter_mode.setText("Show all pages")
+            self.next_page_button.setText("Next Page containing search")
+            self.prev_page_button.setText("Previous Page containing search")
+            # if not already on page, then jump to the first page which matches search
+            self.jump_first_matched_page()
+        else:
+            self.filter_mode.setText("Show matching pages")
+            self.next_page_button.setText("Next Page")
+            self.prev_page_button.setText("Previous Page")
 
     def next_page(self):
         """
@@ -533,11 +557,26 @@ class DocWindow(Qw.QWidget):
         If current page is the last page, the page will not increment
         :return: NONE
         """
-        # if on last page, make current page the first page
-        if(self._currPage + 1 != len(self._pages)):
-            self._currPage += 1
-            self.update_page_blocks()
-        self.update_image()
+        # if we are in the mode to only display pages that match filter, then iterate through  self._filteredPageIndexes
+        if self.filter_mode.isChecked():
+            # if nothing matches the filter, then do nothing
+            if len(self._filtered_page_indexes) == 0:
+                return
+            # if not on last page, then find next page
+            key_list = list(self._filtered_page_indexes.keys())
+            if self._currPage != key_list[len(key_list)-1]:
+                # find the index of the tuple whose page we are currently on, and set it to that + 1
+                for index, page_number in enumerate(key_list):
+                    if page_number == self._currPage:
+                        break
+                self._currPage = key_list[index + 1]
+                self.update_image()
+        # otherwise, perform as normal
+        else:
+            # if not at end, then go forward a page
+            if self._currPage + 1 != self._pages_len:
+                self._currPage += 1
+            self.update_image()
 
     def prev_page(self):
         """
@@ -545,13 +584,26 @@ class DocWindow(Qw.QWidget):
         If current page is the first page, the page will not decrement
         :return: NONE
         """
-        if(self._currPage != 0):
-            self._currPage -= 1
-            self.update_page_blocks()
-        self.update_image()
-
-    def update_page_blocks(self):
-        self._page_blocks = self._pages[self._currPage].blocks
+        # if we are in the mode to only display pages that match filter, then iterate through  self._filteredPageIndexes
+        if self.filter_mode.isChecked():
+            # if nothing matches the filter, then do nothing
+            if len(self._filtered_page_indexes) == 0:
+                return
+            # if not on last page, then find next page
+            key_list = list(self._filtered_page_indexes.keys())
+            if self._currPage != key_list[0]:
+                # find the index of the tuple whose page we are currently on, and set it to that + 1
+                for index, page_number in enumerate(key_list):
+                    if page_number == self._currPage:
+                        break
+                self._currPage = key_list[index - 1]
+                self.update_image()
+        # otherwise, perform as normal
+        else:
+            # go not at beginning, then go back a page
+            if self._currPage != 0:
+                self._currPage -= 1
+            self.update_image()
 
     def update_filter(self):
         """
@@ -559,60 +611,80 @@ class DocWindow(Qw.QWidget):
         :return: NONE
         """
         self._filter = self.search_bar.text()
+        self.exec_filter()
         self.update_image()
+        # if in matching pages mode, jump to the first page that was matched if not already on matched page
+        if self.filter_mode.isChecked():
+            self.jump_first_matched_page()
+
+    def jump_first_matched_page(self):
+        """
+        Jump to the first matched page if there are matches and not currently on a matched page, 
+        otherwise do nothing
+        :return: NONE
+        """
+        if len(self._filtered_page_indexes) != 0 and self._currPage not in self._filtered_page_indexes.keys():
+            self._currPage = list(self._filtered_page_indexes.keys())[0]
+            self.update_image()
+
+    def exec_filter(self):
+        """
+        Performs filtering operations, populating self._filtered_page_indexes
+        :return: NONE
+        """
+        # clear self._filtered_page_indexes
+        self._filtered_page_indexes = OrderedDict()
+        # if there is search critera, then perform filtering
+        if self._filter:
+            db.connect(reuse_if_open=True)
+            # search each block in the current page to see if it contains the search criteria (filter)
+            for page_index, page in enumerate(self._pages):
+                matched_blocks = []
+                for block in page.blocks:
+                    text = block.text.lower()
+                    # if the filter value is contained in the block text, add block to list
+                    for word in self._filter.lower().split():
+                        if word in text:
+                            matched_blocks.append(block)
+                if len(matched_blocks) != 0:
+                    self._filtered_page_indexes[page_index] = matched_blocks
+            db.close()
 
     def update_image(self):
         """
-        Function that updates the rectangles on the image based on self._currPage and self._filter
+        Function that updates the rectangles on the image based on self._currPage and self._filtered_page_indexes
         :return: NONE
         """
         db.connect(reuse_if_open=True)
         # if there is no search criteria, display original image of current page
-        if not self._filter:
+        if not self._filter or self._currPage not in self._filtered_page_indexes.keys():
             img = Qg.QImage.fromData(self._pages[self._currPage].image)
             qp = Qg.QPixmap.fromImage(img)
             self.im = qp.scaled(2550 / 5, 3300 / 5,
                                 Qc.Qt.KeepAspectRatio, Qc.Qt.SmoothTransformation)
             self.label.setPixmap(self.im)
         else:
-            # reset listBlocks
-            self._listBlocks = []
-            # search each block in the current page to see if it contains the search criteria (filter)
-            for block in self._page_blocks:
-                # if the filter value is contained in the block text, add block to list
-                for word in self._filter.lower().split():
-                    if(word in block.text.lower()):
-                        print(block.text, block.page_id)
-                        self._listBlocks.append(block)
-
             # for each block containing the search criteria, draw rectangles on the image
-            if self._listBlocks:
-                img = Qg.QImage.fromData(self._pages[self._currPage].image)
-                pixmap = Qg.QPixmap.fromImage(img)
-                for block in self._listBlocks:
-                    # set color of rectangle based on confidence level of OCR
-                    if block.conf >= 80:
-                        color = Qc.Qt.green
-                    elif (block.conf < 80 and block.conf >= 40):
-                        color = Qc.Qt.blue
-                    else:
-                        color = Qc.Qt.red
-                    painter = Qg.QPainter(pixmap)
-                    painter.setPen(Qg.QPen(color, 3, Qc.Qt.SolidLine))
-                    painter.drawRect(block.left, block.top,
-                                     block.width, block.height)
-                    painter.end()
+            block_list = self._filtered_page_indexes[self._currPage]
+            img = Qg.QImage.fromData(self._pages[self._currPage].image)
+            pixmap = Qg.QPixmap.fromImage(img)
+            for block in block_list:
+                # set color of rectangle based on confidence level of OCR
+                if block.conf >= 80:
+                    color = Qc.Qt.green
+                elif (block.conf < 80 and block.conf >= 40):
+                    color = Qc.Qt.blue
+                else:
+                    color = Qc.Qt.red
+                painter = Qg.QPainter(pixmap)
+                painter.setPen(Qg.QPen(color, 3, Qc.Qt.SolidLine))
+                painter.drawRect(block.left, block.top,
+                                 block.width, block.height)
+                painter.end()
 
-                self.im = pixmap.scaled(
-                    2550 / 5, 3300 / 5, Qc.Qt.KeepAspectRatio, Qc.Qt.SmoothTransformation)
-                self.label.setPixmap(self.im)
-            # no blocks found, display original image
-            else:
-                img = Qg.QImage.fromData(self._pages[self._currPage].image)
-                qp = Qg.QPixmap.fromImage(img)
-                self.im = qp.scaled(
-                    2550 / 5, 3300 / 5, Qc.Qt.KeepAspectRatio, Qc.Qt.SmoothTransformation)
-                self.label.setPixmap(self.im)
+            self.im = pixmap.scaled(
+                2550 / 5, 3300 / 5, Qc.Qt.KeepAspectRatio, Qc.Qt.SmoothTransformation)
+            self.label.setPixmap(self.im)
         db.close()
 
 
