@@ -101,6 +101,9 @@ class OcrProc(Process):
 
 
 class MainWindow(Qw.QMainWindow):
+    """
+    Custom Main Window class with new document and status bar features
+    """
     def __init__(self, child_process_queue: Queue, emitter: StatusEmitter, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
@@ -141,6 +144,9 @@ class MainWindow(Qw.QMainWindow):
 
 
 class MainUI(Qw.QWidget):
+    """
+    UI for the Main Window
+    """
     def __init__(self, new_doc_cb, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
@@ -158,6 +164,9 @@ class MainUI(Qw.QWidget):
 
 
 class ListDocuments(Qw.QWidget):
+    """
+    Contains methods for interacting with list of documents: removal, addition, displaying
+    """
     def __init__(self, new_doc_cb, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
@@ -197,9 +206,7 @@ class ListDocuments(Qw.QWidget):
         self.ui_box.addWidget(self.ocr_search)
         self.ui_box.addWidget(self.search_bar)
         self.ui_box.addWidget(self.remove_mode)
-
-        # self._layout.addWidget(self.search_bar)
-
+        # produces the document buttons that users can interact with
         for doc in OcrDocument.select():
             # assuming that each doc will surely have at least one page
             img = doc.pages[0].image
@@ -324,6 +331,9 @@ class ListDocuments(Qw.QWidget):
 
 
 class NewDocWindow(Qw.QWidget):
+    """
+    New Document Window Class: the window that appears when the user tries to insert a new document
+    """
     def __init__(self, new_doc_cb, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.new_doc_cb = new_doc_cb
@@ -340,6 +350,9 @@ class NewDocWindow(Qw.QWidget):
 
 
 class NewDocOptions(Qw.QWidget):
+    """
+    Contains the methods for new document insertion: model selection and add/remove/display functionality
+    """
     def __init__(self, close_cb, new_doc_cb, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.close_cb = close_cb
@@ -396,6 +409,9 @@ class NewDocOptions(Qw.QWidget):
         self.setLayout(layout)
 
     def choose_files(self):
+        """
+        Opens the file dialog and sets a filter for the type of files allowed
+        """
         file_dialog = Qw.QFileDialog(self)
         file_dialog.setFileMode(Qw.QFileDialog.ExistingFiles)
         file_dialog.setNameFilter(
@@ -404,9 +420,8 @@ class NewDocOptions(Qw.QWidget):
 
         if file_dialog.exec_():
             file_names = file_dialog.selectedFiles()
-
-        itemsTextList = [self.listwidget.item(
-            i).text() for i in range(self.listwidget.count())]
+        # Insert the file(s) into listwidget unless it is a duplicate
+        itemsTextList = [self.listwidget.item(i).text() for i in range(self.listwidget.count())]
         for file_name in file_names:
             if file_name not in itemsTextList:
                 self.listwidget.insertItem(self.listwidget.count(), file_name)
@@ -415,6 +430,9 @@ class NewDocOptions(Qw.QWidget):
                 print("Do not insert duplicates.")
 
     def remove_files(self):
+        """
+        Removes the selected files in listwidget upon button press
+        """
         items = self.listwidget.selectedItems()
         if len(items) == 0:
             msg = Qw.QMessageBox()
@@ -429,6 +447,9 @@ class NewDocOptions(Qw.QWidget):
                 self.listwidget.takeItem(self.listwidget.row(item))
 
     def process_document(self):
+        """
+        Adds a new document to the database with the file names from listwidget
+        """
         db.connect(reuse_if_open=True)
         name = self.name_edit.text()
         query = OcrDocument.select().where(OcrDocument.name == name)
@@ -473,6 +494,9 @@ class NewDocOptions(Qw.QWidget):
 
 
 class DocWindow(Qw.QWidget):
+    """
+    Document Window for when the user is searching in a specific document
+    """
     def __init__(self, doc, filter='', *args, **kwargs):
         """
         Constructor method
@@ -688,6 +712,9 @@ class DocWindow(Qw.QWidget):
 
 
 class SingleDocumentButton(Qw.QToolButton):
+    """
+    Custom Button Class for Document Button which has a thumbnail of the first page
+    """
     def __init__(self, name, image, doc, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
@@ -725,6 +752,9 @@ class SingleDocumentButton(Qw.QToolButton):
 
 
 class DocumentThumbnail(Qw.QLabel):
+    """
+    Class for creating the pixmap from page.imageblobdata
+    """
     def __init__(self, image, *args, **kwargs):
         super().__init__(*args, **kwargs)
         qimg = Qg.QImage.fromData(image)
