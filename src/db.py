@@ -7,7 +7,7 @@ DATABASE = 'ocr_files.db'
 
 # Do we need c extensions?
 db = SqliteExtDatabase(DATABASE, autoconnect=False, c_extensions=False, pragmas={
-    'journal_mode': 'wal',  # Use WAL-mode
+    'journal_mode': 'delete',  # Use DELETE mode
     'foreign_keys': 1})  # Enforce foreign-key constraints
 
 
