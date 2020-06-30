@@ -217,12 +217,13 @@ class NewDocOptions(Qw.QWidget):
         db.close()
 
     def display_info(self):
-        print("Info clicked")
-        info = Qw.QMessageBox()
-        print(self.size())
-        info.setFixedSize(self.size())
-        info.setWindowTitle("OCR Information")
-        info.setIcon(Qw.QMessageBox.Information)
-        info.setInformativeText("Best vs Fast:\nBest is more accurate, but takes longer to process\nPSM Values:\n"
-                                "0 - Orientation and script detection only")
-        info.exec_()
+        text_file = Qw.QTextBrowser()
+        text = open("../information_doc_options.txt").read()
+        text_file.setText(text)
+        dialog = Qw.QDialog(parent=self)
+        temp_layout = Qw.QHBoxLayout()
+        temp_layout.addWidget(text_file)
+        dialog.setWindowTitle("Information")
+        dialog.setLayout(temp_layout)
+        dialog.show()
+
