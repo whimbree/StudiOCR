@@ -1,8 +1,8 @@
-import cv2
+import pickle
 
 import numpy as np
 from peewee import fn
-import pickle
+import cv2
 from PIL import Image
 import pytesseract
 from pytesseract import Output
@@ -11,16 +11,8 @@ from db import (db, OcrDocument, OcrPage, OcrBlock, create_tables)
 from ImagePipeline import ImagePipeline
 from OcrPageData import OcrPageData
 
-# This entire file must be redone with objects
-# This is just a quick demo to show how to get started with OCR
-# References:
-# https://nanonets.com/blog/ocr-with-tesseract/
-# https://pypi.org/project/pytesseract/
 
-
-# This class will process a multi page document as images and then store it in the database
-# This class will process a multi page document as images and then store it in the database
-class OcrProcess:
+class OcrEngine:
     """Processes image for each page of a document and then integrates with Sqlite database"""
 
     def __init__(self, name: str) -> None:

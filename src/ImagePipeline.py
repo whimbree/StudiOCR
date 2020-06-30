@@ -1,10 +1,11 @@
 
 from __future__ import annotations
 from collections import OrderedDict
+from typing import Any, Callable, NamedTuple, Union
+
 import numpy as np
 import PIL
 from PIL import Image
-from typing import Any, Callable, NamedTuple, Union
 
 
 class StepData(NamedTuple):
@@ -58,20 +59,24 @@ class ImagePipeline:
         """
         # Error checking
         try:
-            pipeline_raw = new_pipeline.pipeline   # Actual pipeline attribute holding the steps (OrderedDict)
+            # Actual pipeline attribute holding the steps (OrderedDict)
+            pipeline_raw = new_pipeline.pipeline
             if type(pipeline_raw) != OrderedDict:
-                raise TypeError('new_pipeline must be an ImagePipeline object based on an OrderedDict __pipeline property')
+                raise TypeError(
+                    'new_pipeline must be an ImagePipeline object based on an OrderedDict __pipeline property')
             if end > new_pipeline.size() or end is None:
-                raise ValueError('end must be integer no greater than size of other_pipeline')
+                raise ValueError(
+                    'end must be integer no greater than size of other_pipeline')
         except (TypeError, ValueError) as error:
             print(str(error))
             return
 
         pipeline_raw = new_pipeline.pipeline
-        self.__pipeline = OrderedDict(list(new_pipeline.pipeline.items())[start:end])
+        self.__pipeline = OrderedDict(
+            list(new_pipeline.pipeline.items())[start:end])
         return self.__pipeline
 
-    def add_step(self, name: str, new_step: Union[Callable, str], image_param_name: str, outer_function: Any=None, other_params: dict = None, capture_index: int = 0) -> None:
+    def add_step(self, name: str, new_step: Union[Callable, str], image_param_name: str, outer_function: Any = None, other_params: dict = None, capture_index: int = 0) -> None:
         """
         Append new function to end of pipeline
 
@@ -85,19 +90,22 @@ class ImagePipeline:
         """
         try:
             if (outer_function is None and type(new_step) == str) or (outer_function is not None and type(new_step) != str):
-                raise TypeError('dependent function must be string if module is used')
+                raise TypeError(
+                    'dependent function must be string if module is used')
         except TypeError as error:
             print(str(error))
             return
 
-        step_tuple = StepData(name=name, new_step=new_step, image_param_name=image_param_name, outer_function=outer_function, other_params=other_params, capture_index=capture_index)
+        step_tuple = StepData(name=name, new_step=new_step, image_param_name=image_param_name,
+                              outer_function=outer_function, other_params=other_params, capture_index=capture_index)
         self.pipeline.update({name: step_tuple})
 
     def run(self, image: np.ndarray, until: int = None) -> np.ndarray:
         """Run an original image through pipeline"""
         try:
             if until is not None and (until < 0 or until > self.size()):
-                raise IndexError('until must specify step index within pipeline')
+                raise IndexError(
+                    'until must specify step index within pipeline')
         except IndexError as error:
             print(str(error))
             return
@@ -119,17 +127,21 @@ class ImagePipeline:
 
             if outer_function is None and type(func) != str:
                 """cv2 function"""
-                args = {image_param_name: image_current} if other_params is None else {image_param_name: image_current, **other_params}
+                args = {image_param_name: image_current} if other_params is None else {
+                    image_param_name: image_current, **other_params}
                 retval = func(**args)  # return value
-                image_current = retval[capture_index] if type(retval) == tuple else retval
+                image_current = retval[capture_index] if type(
+                    retval) == tuple else retval
             else:
                 """PIL function"""
-                pil_object = outer_function(**{image_param_name: Image.fromarray(obj=image_current)})
+                pil_object = outer_function(
+                    **{image_param_name: Image.fromarray(obj=image_current)})
                 pil_func = getattr(pil_object, func)
                 retval = pil_func() if other_params is None else pil_func(**other_params)
-                image_current = retval[capture_index] if type(retval) == tuple else retval
+                image_current = retval[capture_index] if type(
+                    retval) == tuple else retval
 
-            image_current = np.asarray(a=image_current) if type(image_current) == PIL.Image.Image else image_current
+            image_current = np.asarray(a=image_current) if type(
+                image_current) == PIL.Image.Image else image_current
 
         return image_current
-
