@@ -154,8 +154,6 @@ class NewDocOptions(Qw.QWidget):
                     self.listwidget.insertItem(
                         self.listwidget.count(), file_name)
                     itemsTextList.append(file_name)
-                else:
-                    print("Do not insert duplicates.")
 
     def remove_files(self):
         """
@@ -221,9 +219,14 @@ class NewDocOptions(Qw.QWidget):
         text = open("../information_doc_options.txt").read()
         text_file.setText(text)
         dialog = Qw.QDialog(parent=self)
+
+        desktop = Qw.QDesktopWidget()
+        desktop_size = desktop.availableGeometry(
+            desktop.primaryScreen()).size()
+        dialog.resize(desktop_size.width() * 0.2, desktop_size.height() * 0.4)
+
         temp_layout = Qw.QHBoxLayout()
         temp_layout.addWidget(text_file)
         dialog.setWindowTitle("Information")
         dialog.setLayout(temp_layout)
         dialog.show()
-
