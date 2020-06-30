@@ -9,11 +9,13 @@ StudiOCR is an application to index notes and make them searchable by using OCR.
 ![Image of MainWindow](https://github.com/BSpwr/StudiOCR/blob/ui/images/MainWindow.PNG)
 - Click the Add New Document button to open the add new document window interface
 - Click on a document thumbnail to open the document window interface
-- Toggle remove mode to switch to removing existing documents
+- Toggle remove mode to remove existing documents
+![Image of RemoveDocument](https://github.com/BSpwr/StudiOCR/blob/ui/images/RemoveDocument.PNG)
 - Search for a document based on document name by typing in the search bar with the DOC bullet selected
 - Search for a document based on matching OCR text by typing in the search bar with the OCR bullet selected  
 
 ## Add New Document Window
+![Image of AddDocument](https://github.com/BSpwr/StudiOCR/blob/ui/images/AddDocument.PNG)
 - Choose .JPG or .PNG files to be processed by OCR into a document in the database
 - Input the document name 
 - Select the processing model you wish to use: Best (for accuracy) or Fast (for speed)
@@ -35,6 +37,7 @@ PSM Number | Value
 13 | Raw line. Treat the image as a single text line, bypassing hacks that are Tesseract-specific.
 
 ## Document Window
+![Image of DocWindow](https://github.com/BSpwr/StudiOCR/blob/ui/images/DocWindow.PNG)
 - The first page of every document is the thumbnail shown on the Main Window
 - Enter text in the search bar to search for matching text in the document 
 - Click the Next/Previous Page buttons to cycle through the pages in the document
