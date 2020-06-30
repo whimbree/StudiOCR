@@ -108,8 +108,7 @@ class DocWindow(Qw.QDialog):
     def next_page(self):
         """
         Increment the current page number if the next page button is pressed.
-        If current page is the last page, the page will not increment
-        :return: NONE
+        If in filter mode, will go to next page containing the filter in the search bar
         """
         # if we are in the mode to only display pages that match filter, then iterate through  self._filteredPageIndexes
         if self.filter_mode.isChecked():
@@ -137,8 +136,7 @@ class DocWindow(Qw.QDialog):
     def prev_page(self):
         """
         Decrement the current page number if the next page button is pressed.
-        If current page is the first page, the page will not decrement
-        :return: NONE
+        If in filter mode, will go to previous page containing filter in the search bar
         """
         # if we are in the mode to only display pages that match filter, then iterate through  self._filteredPageIndexes
         if self.filter_mode.isChecked():
@@ -166,7 +164,6 @@ class DocWindow(Qw.QDialog):
     def update_filter(self):
         """
         Updates the filter criteria as the text in the search bar changes
-        :return: NONE
         """
         self._filter = self.search_bar.text()
         self.exec_filter()
@@ -179,7 +176,6 @@ class DocWindow(Qw.QDialog):
         """
         Jump to the first matched page if there are matches and not currently on a matched page,
         otherwise do nothing
-        :return: NONE
         """
         if len(self._filtered_page_indexes) != 0 and self._currPage not in self._filtered_page_indexes.keys():
             self._currPage = list(self._filtered_page_indexes.keys())[0]
@@ -189,7 +185,6 @@ class DocWindow(Qw.QDialog):
     def exec_filter(self):
         """
         Performs filtering operations, populating self._filtered_page_indexes
-        :return: NONE
         """
         # clear self._filtered_page_indexes
         self._filtered_page_indexes = OrderedDict()
@@ -213,7 +208,6 @@ class DocWindow(Qw.QDialog):
     def update_image(self):
         """
         Function that updates the rectangles on the image based on self._currPage and self._filtered_page_indexes
-        :return: NONE
         """
         db.connect(reuse_if_open=True)
         # if there is no search criteria, display original image of current page

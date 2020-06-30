@@ -217,6 +217,10 @@ class NewDocOptions(Qw.QWidget):
         db.close()
 
     def display_info(self):
+        """
+        When the information button is pressed, this window spawns with the information about the new
+        document options
+        """
         text_file = Qw.QTextBrowser()
         text = open("../information_doc_options.txt").read()
         text_file.setText(text)
