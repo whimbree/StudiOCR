@@ -23,13 +23,14 @@ class OcrDocument(BaseModel):
 
     def delete_document(self):
         num_rows_deleted = 0
-        for page in self.pages:
-            for block in page.blocks:
-                block.delete_instance()
+        with db.atomic():
+            for page in self.pages:
+                for block in page.blocks:
+                    block.delete_instance()
+                    num_rows_deleted += 1
+                page.delete_instance()
                 num_rows_deleted += 1
-            page.delete_instance()
-            num_rows_deleted += 1
-        self.delete_instance()
+            self.delete_instance()
         return num_rows_deleted + 1
 
 
