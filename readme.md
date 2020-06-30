@@ -39,7 +39,7 @@ PSM Number | Value
 - Enter text in the search bar to search for matching text in the document 
 - Click the Next/Previous Page buttons to cycle through the pages in the document
 - The current page number is shown at the bottom of the window
-- Toggle show matching pages to only display pages with matching text and cycle through them 
+- Toggle show matching pages to only display pages with matching text and to cycle through them 
 - Box Color:
 
 Box Color | Confidence Value
