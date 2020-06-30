@@ -80,6 +80,9 @@ class ListDocuments(Qw.QWidget):
         db.close()
 
     def set_remove_mode(self):
+        """
+        Set state for remove or add mode
+        """
         if self.remove_mode.isChecked():
             self.remove_mode.setText("Disable remove mode")
         else:
@@ -87,6 +90,9 @@ class ListDocuments(Qw.QWidget):
         self.render_doc_grid()
 
     def render_doc_grid(self):
+        """
+        Render the grid area that displays all of the documents
+        """
         # clear the doc_grid, not deleting widgets since they will be used later for repopulation
         while self.doc_grid.count():
             # must make the removed widget a child of the class, so that it does not get garbage collected
@@ -108,6 +114,10 @@ class ListDocuments(Qw.QWidget):
 
     @Qc.Slot(int)
     def display_new_document(self, doc_id):
+        """
+        Display the new document added by creating a button for the new doc and re-rendering the doc grid
+        :param doc_id: ID of the new document in the database
+        """
         db.connect(reuse_if_open=True)
         doc = OcrDocument.get(OcrDocument.id == doc_id)
         # assuming that each doc will surely have at least one page
@@ -119,6 +129,11 @@ class ListDocuments(Qw.QWidget):
         db.close()
 
     def create_doc_window(self, doc):
+        """
+        Depending on the state of remove, this function will either remove the document clicked or spawn
+        a document window for the document
+        :param doc: document to remove or display
+        """
         db.connect(reuse_if_open=True)
         # If remove mode is checked, then prompt and remove the document
         if self.remove_mode.isChecked():
@@ -154,6 +169,9 @@ class ListDocuments(Qw.QWidget):
         self.new_doc_window.show()
 
     def update_filter(self):
+        """
+        Updates the filter after the input in the search bar is changed
+        """
         db.connect(reuse_if_open=True)
         self._filter = self.search_bar.text()
 
