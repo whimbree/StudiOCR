@@ -40,8 +40,10 @@ class ListDocuments(Qw.QWidget):
         self.search_bar.textChanged.connect(self.update_filter)
 
         self.doc_search = Qw.QRadioButton("DOC")
+        self.doc_search.clicked.connect(self.update_filter)
         self.doc_search.setChecked(True)
         self.ocr_search = Qw.QRadioButton("OCR")
+        self.ocr_search.clicked.connect(self.update_filter)
 
         self.remove_mode = Qw.QPushButton("Enable remove mode")
         self.remove_mode.setCheckable(True)
@@ -184,6 +186,9 @@ class ListDocuments(Qw.QWidget):
             words = self._filter.lower().split()
             for button in self._docButtons:
                 text_found = False
+                if len(words) == 0:
+                    self._active_docs.append(button)
+                    continue
                 for page in button.doc.pages:
                     for block in page.blocks:
                         text = block.text.lower()
