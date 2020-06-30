@@ -52,7 +52,7 @@ class NewDocOptions(Qw.QWidget):
         self.name_edit = Qw.QLineEdit()
 
         # Bug in qdarkstyle that makes dropdowns too large, so we need to add styles
-        dropdown_style = """QComboBox::item:checked {
+        self.dropdown_style = """QComboBox::item:checked {
                 height: 12px;
                 border: 1px solid #32414B;
                 margin-top: 0px;
@@ -64,7 +64,7 @@ class NewDocOptions(Qw.QWidget):
         self.best_vs_fast = Qw.QLabel("Best Model or Fast Model:")
         self.best_vs_fast_options = Qw.QComboBox()
 
-        self.best_vs_fast_options.setStyleSheet(dropdown_style)
+        self.best_vs_fast_options.setStyleSheet(self.dropdown_style)
         self.best_vs_fast_options.addItem("Fast")
         self.best_vs_fast_options.addItem("Best")
         # Default should be Best
@@ -72,7 +72,7 @@ class NewDocOptions(Qw.QWidget):
 
         self.processing_label = Qw.QLabel("Perform image preprocessing:")
         self.processing_options = Qw.QComboBox()
-        self.processing_options.setStyleSheet(dropdown_style)
+        self.processing_options.setStyleSheet(self.dropdown_style)
         self.processing_options.addItem("No")
         self.processing_options.addItem("Yes")
         # Default should be no
@@ -80,7 +80,7 @@ class NewDocOptions(Qw.QWidget):
 
         self.psm_label = Qw.QLabel("PSM Number")
         self.psm_num = Qw.QComboBox()
-        self.psm_num.setStyleSheet(dropdown_style)
+        self.psm_num.setStyleSheet(self.dropdown_style)
         for i in range(3, 14):
             self.psm_num.addItem(str(i))
         # Default should be 3
@@ -88,7 +88,7 @@ class NewDocOptions(Qw.QWidget):
 
         # self.oem_label = Qw.QLabel("OEM Number")
         # self.oem_num = Qw.QComboBox()
-        # self.oem_num.setStyleSheet(dropdown_style)
+        # self.oem_num.setStyleSheet(self.dropdown_style)
         # for i in range(0, 4):
         #     self.oem_num.addItem(str(i))
         # # Default should be 3
@@ -138,9 +138,10 @@ class NewDocOptions(Qw.QWidget):
         Opens the file dialog and sets a filter for the type of files allowed
         """
         file_dialog = Qw.QFileDialog(self)
+        file_dialog.setStyleSheet(self.dropdown_style)
         file_dialog.setFileMode(Qw.QFileDialog.ExistingFiles)
         file_dialog.setNameFilter(
-            "Images (*.png *.jpg);;PDF Files (*.pdf)")
+            "Images (*.png *.jpg)")
         file_dialog.selectNameFilter("Images (*.png *.jpg)")
 
         if file_dialog.exec_():
