@@ -19,8 +19,6 @@ class MainWindow(Qw.QMainWindow):
 
         self.process_queue = child_process_queue
         self.emitter = emitter
-        self.emitter.daemon = True
-        self.emitter.start()
 
         self.setWindowTitle("StudiOCR")
 
@@ -34,26 +32,37 @@ class MainWindow(Qw.QMainWindow):
         self.setCentralWidget(self.main_widget)
 
         # Configure emitter
-        self.emitter.document_process_status.connect(self.update_status_bar)
+        self.emitter.document_process_status.connect(
+            self.set_document_process_status)
 
         self.emitter.data_available.connect(
             self.main_widget.documents.display_new_document)
 
         self.docs_in_queue = 0
+        self.current_doc_process_status = 0
 
-    def new_doc(self, name, filenames):
+    def new_doc(self, name, filenames, oem, psm, best, preprocessing):
         """Send filenames and doc name to ocr process"""
+        self.process_queue.put(
+            (name, filenames, (oem, psm, best, preprocessing)))
         self.docs_in_queue += 1
-        self.process_queue.put((name, filenames))
+        self.update_status_bar()
 
     @ Qc.Slot(int)
-    def update_status_bar(self, current_doc_process_status):
+    def set_document_process_status(self, current_doc_process_status):
+        self.current_doc_process_status = current_doc_process_status
+        self.update_status_bar()
+
+    def update_status_bar(self):
         self.statusBar().showMessage(
-            f"{self.docs_in_queue} documents in queue. Current document {current_doc_process_status}% complete.")
-        if current_doc_process_status == 100:
+            f"{self.docs_in_queue} documents in queue. Current document {self.current_doc_process_status}% complete.")
+        if self.current_doc_process_status == 100:
             self.docs_in_queue -= 1
+            self.current_doc_process_status = 0
             if self.docs_in_queue == 0:
                 self.statusBar().showMessage("All documents processed.")
+            else:
+                self.update_status_bar()
 
 
 class MainUI(Qw.QWidget):

@@ -18,13 +18,19 @@ class StatusEmitter(Qc.QThread):
     document_process_status = Qc.Signal(int)
     data_available = Qc.Signal(int)
 
-    def __init__(self, from_ocr_process: Pipe):
-        super().__init__()
+    def __init__(self, from_ocr_process: Pipe, parent=None):
+        super().__init__(parent=parent)
+
+        self.running = False
 
         self.data_from_process = from_ocr_process
 
+    def stop(self):
+        self.running = False
+
     def run(self):
-        while True:
+        self.running = True
+        while self.running:
             try:
                 status, doc_id = self.data_from_process.recv()
             except EOFError:
@@ -52,11 +58,16 @@ class OcrWorker(Process):
         Wait for any data to process and then process it and sent status updates
         """
         while True:
-            (name, filepaths) = self.data_to_process.get()
+            value = self.data_to_process.get()
+            # if sent None then terminate process
+            if value is None:
+                break
+            (name, filepaths, (oem, psm, best, preprocessing)) = value
             page_length = len(filepaths)
             ocr = OcrEngine(name)
             for idx, filepath in enumerate(filepaths):
-                ocr.process_image(filepath)
+                ocr.process_image(image_filepath=filepath, oem=oem,
+                                  psm=psm, best=best, preprocessing=preprocessing)
                 self.to_output.send(((idx / page_length)*100, None))
             doc_id = ocr.commit_data()
             self.to_output.send((100, doc_id))

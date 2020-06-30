@@ -5,13 +5,13 @@ from PySide2 import QtGui as Qg
 from db import (db, OcrDocument, OcrPage, OcrBlock, create_tables)
 
 
-class NewDocWindow(Qw.QWidget):
+class NewDocWindow(Qw.QDialog):
     """
     New Document Window Class: the window that appears when the user tries to insert a new document
     """
 
-    def __init__(self, new_doc_cb, *args, **kwargs):
-        super().__init__(*args, **kwargs)
+    def __init__(self, new_doc_cb, parent=None, *args, **kwargs):
+        super().__init__(parent=parent, *args, **kwargs)
         self.new_doc_cb = new_doc_cb
 
         self.setWindowTitle("Add New Document")
@@ -19,7 +19,7 @@ class NewDocWindow(Qw.QWidget):
         desktop = Qw.QDesktopWidget()
         desktop_size = desktop.availableGeometry(
             desktop.primaryScreen()).size()
-        self.resize(desktop_size.width() * 0.2, desktop_size.height() * 0.4)
+        self.resize(desktop_size.width() * 0.2, desktop_size.height() * 0.6)
 
         self.settings = NewDocOptions(self.close, self.new_doc_cb)
 
@@ -47,25 +47,68 @@ class NewDocOptions(Qw.QWidget):
         self.remove_file_button.clicked.connect(self.remove_files)
 
         self.options = Qw.QGroupBox("Options")
+
         self.name_label = Qw.QLabel("Document Name:")
         self.name_edit = Qw.QLineEdit()
+
+        # Bug in qdarkstyle that makes dropdowns too large, so we need to add styles
+        dropdown_style = """QComboBox::item:checked {
+                height: 12px;
+                border: 1px solid #32414B;
+                margin-top: 0px;
+                margin-bottom: 0px;
+                padding: 4px;
+                padding-left: 0px;
+                }"""
+
         self.best_vs_fast = Qw.QLabel("Best Model or Fast Model:")
         self.best_vs_fast_options = Qw.QComboBox()
-        self.best_vs_fast_options.addItem("Best")
+
+        self.best_vs_fast_options.setStyleSheet(dropdown_style)
         self.best_vs_fast_options.addItem("Fast")
+        self.best_vs_fast_options.addItem("Best")
+        # Default should be Best
+        self.best_vs_fast_options.setCurrentIndex(1)
+
+        self.processing_label = Qw.QLabel("Perform image preprocessing:")
+        self.processing_options = Qw.QComboBox()
+        self.processing_options.setStyleSheet(dropdown_style)
+        self.processing_options.addItem("No")
+        self.processing_options.addItem("Yes")
+        # Default should be no
+        self.processing_options.setCurrentIndex(0)
+
         self.psm_label = Qw.QLabel("PSM Number")
-        self.psm_num = Qw.QSpinBox()
-        self.psm_num.setRange(1, 10)
+        self.psm_num = Qw.QComboBox()
+        self.psm_num.setStyleSheet(dropdown_style)
+        for i in range(3, 14):
+            self.psm_num.addItem(str(i))
+        # Default should be 3
+        self.psm_num.setCurrentIndex(0)
+
+        # self.oem_label = Qw.QLabel("OEM Number")
+        # self.oem_num = Qw.QComboBox()
+        # self.oem_num.setStyleSheet(dropdown_style)
+        # for i in range(0, 4):
+        #     self.oem_num.addItem(str(i))
+        # # Default should be 3
+        # self.oem_num.setCurrentIndex(3)
+
         self.info_button = Qw.QPushButton()
         self.info_button.setIcon(Qg.QIcon("../images/info_icon.png"))
         self.info_button.clicked.connect(self.display_info)
+
         options_layout = Qw.QVBoxLayout()
         options_layout.addWidget(self.name_label)
         options_layout.addWidget(self.name_edit)
         options_layout.addWidget(self.best_vs_fast)
         options_layout.addWidget(self.best_vs_fast_options)
+        options_layout.addWidget(self.processing_label)
+        options_layout.addWidget(self.processing_options)
         options_layout.addWidget(self.psm_label)
         options_layout.addWidget(self.psm_num)
+        # options_layout.addWidget(self.oem_label)
+        # options_layout.addWidget(self.oem_num)
         options_layout.addWidget(self.info_button, alignment=Qc.Qt.AlignRight)
         self.options.setLayout(options_layout)
 
@@ -102,15 +145,16 @@ class NewDocOptions(Qw.QWidget):
 
         if file_dialog.exec_():
             file_names = file_dialog.selectedFiles()
-        # Insert the file(s) into listwidget unless it is a duplicate
-        itemsTextList = [self.listwidget.item(
-            i).text() for i in range(self.listwidget.count())]
-        for file_name in file_names:
-            if file_name not in itemsTextList:
-                self.listwidget.insertItem(self.listwidget.count(), file_name)
-                itemsTextList.append(file_name)
-            else:
-                print("Do not insert duplicates.")
+            # Insert the file(s) into listwidget unless it is a duplicate
+            itemsTextList = [self.listwidget.item(
+                i).text() for i in range(self.listwidget.count())]
+            for file_name in file_names:
+                if file_name not in itemsTextList:
+                    self.listwidget.insertItem(
+                        self.listwidget.count(), file_name)
+                    itemsTextList.append(file_name)
+                else:
+                    print("Do not insert duplicates.")
 
     def remove_files(self):
         """
@@ -160,7 +204,14 @@ class NewDocOptions(Qw.QWidget):
             msg.setWindowTitle("Error")
             msg.exec_()
         else:
-            self.new_doc_cb(name, file_names)
+            # looks like the only oem modes supported by both the fast and best model is
+            # the new LTSM mode, so we can hardcode the oem option to 3
+            oem_number = 3
+            psm_number = self.psm_num.currentIndex()+3
+            best = bool(self.best_vs_fast_options.currentIndex())
+            preprocessing = bool(self.processing_options.currentIndex())
+            self.new_doc_cb(name, file_names, oem_number,
+                            psm_number, best, preprocessing)
             self.close_cb()
         db.close()
 

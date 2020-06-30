@@ -7,18 +7,18 @@ from PySide2 import QtGui as Qg
 from db import (db, OcrDocument, OcrPage, OcrBlock, create_tables)
 
 
-class DocWindow(Qw.QWidget):
+class DocWindow(Qw.QDialog):
     """
     Document Window for when the user is searching in a specific document
     """
 
-    def __init__(self, doc, filter='', *args, **kwargs):
+    def __init__(self, doc, parent=None, filter='', *args, **kwargs):
         """
         Constructor method
         :param doc: OCRDocument
         :param filter: Filter from main window
         """
-        super().__init__(*args, **kwargs)
+        super().__init__(parent=parent, *args, **kwargs)
         db.connect(reuse_if_open=True)
         self.setWindowTitle(doc.name)
 
@@ -197,12 +197,13 @@ class DocWindow(Qw.QWidget):
         if self._filter:
             db.connect(reuse_if_open=True)
             # search each block in the current page to see if it contains the search criteria (filter)
+            words = self._filter.lower().split()
             for page_index, page in enumerate(self._pages):
                 matched_blocks = []
                 for block in page.blocks:
                     text = block.text.lower()
                     # if the filter value is contained in the block text, add block to list
-                    for word in self._filter.lower().split():
+                    for word in words:
                         if word in text:
                             matched_blocks.append(block)
                 if len(matched_blocks) != 0:

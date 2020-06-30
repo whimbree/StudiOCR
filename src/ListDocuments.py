@@ -145,11 +145,11 @@ class ListDocuments(Qw.QWidget):
             if self.ocr_search.isChecked():
                 self.doc_window = DocWindow(doc, self._filter)
             else:
-                self.doc_window = DocWindow(doc)
+                self.doc_window = DocWindow(doc, self)
             self.doc_window.show()
 
     def create_new_doc_window(self):
-        self.new_doc_window = NewDocWindow(self.new_doc_cb)
+        self.new_doc_window = NewDocWindow(self.new_doc_cb, self)
         self.new_doc_window.show()
 
     def update_filter(self):
@@ -157,20 +157,23 @@ class ListDocuments(Qw.QWidget):
         self._filter = self.search_bar.text()
 
         self._active_docs = []
-        if(self.doc_search.isChecked()):
+        if self.doc_search.isChecked():
             for button in self._docButtons:
                 if(self._filter.lower() in button.name.lower()):
                     self._active_docs.append(button)
-        elif(self.ocr_search.isChecked()):
+        elif self.ocr_search.isChecked():
+            words = self._filter.lower().split()
             for button in self._docButtons:
                 text_found = False
                 for page in button.doc.pages:
                     for block in page.blocks:
-                        if(self._filter.lower() in block.text.lower()):
-                            if(not text_found):
-                                self._active_docs.append(button)
-                                text_found = True
-                                break
+                        text = block.text.lower()
+                        for word in words:
+                            if word in text:
+                                if not text_found:
+                                    self._active_docs.append(button)
+                                    text_found = True
+                                    break
         db.close()
         self.render_doc_grid()
 

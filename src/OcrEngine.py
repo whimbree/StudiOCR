@@ -33,7 +33,7 @@ class OcrEngine:
         Parameters
         image_filepath - filepath where image is stored
         oem - OCR engine mode (0-3)
-        psm - page segmentation mode (0-13)
+        psm - page segmentation mode (0-13) Modes 0-2 don't perform OCR, so don't allow those
         best - whether to use the best model (or fast model)
         preprocessing - whether to refine image temporarily with ImagePipeline before running pytesseract
         """
@@ -41,9 +41,9 @@ class OcrEngine:
             if oem not in range(4):
                 raise ValueError(
                     'oem must be an integer between 0 and 3 inclusive')
-            if psm not in range(14):
+            if psm not in range(3, 14):
                 raise ValueError(
-                    'psm must be an integer between 0 and 13 inclusive')
+                    'psm must be an integer between 3 and 13 inclusive')
         except ValueError as error:
             print(str(error))
             return

@@ -7,7 +7,7 @@ from PySide2 import QtGui as Qg
 import qdarkstyle
 
 import wsl
-from db import create_tables
+from db import create_tables, db
 from MainWindow import MainWindow
 from OcrWorker import StatusEmitter, OcrWorker
 
@@ -29,7 +29,17 @@ def main():
     queue = Queue()
 
     ocr_process = OcrWorker(child_pipe, queue)
-    status_emitter = StatusEmitter(main_pipe)
+    status_emitter = StatusEmitter(main_pipe, app)
+    status_emitter.daemon = True
+    status_emitter.start()
+
+    def quit_processes():
+        # stop thread
+        status_emitter.stop()
+        # stop process
+        queue.put(None)
+        ocr_process.join()
+        db.close()
 
     window = MainWindow(queue, status_emitter)  # Create main window
 
@@ -39,6 +49,7 @@ def main():
 
     ocr_process.start()  # Start child process
 
+    app.aboutToQuit.connect(quit_processes)
     app.exec_()  # Start application
 
     exit(0)
