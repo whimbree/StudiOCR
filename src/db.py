@@ -7,7 +7,7 @@ DATABASE = 'ocr_files.db'
 
 # Do we need c extensions?
 db = SqliteExtDatabase(DATABASE, autoconnect=False, c_extensions=False, pragmas={
-    'journal_mode': 'wal',  # Use WAL-mode
+    'journal_mode': 'delete',  # Use DELETE mode
     'foreign_keys': 1})  # Enforce foreign-key constraints
 
 
@@ -23,13 +23,16 @@ class OcrDocument(BaseModel):
 
     def delete_document(self):
         num_rows_deleted = 0
-        for page in self.pages:
-            for block in page.blocks:
-                block.delete_instance()
+        with db.atomic():
+            for page in self.pages:
+                for block in page.blocks:
+                    block.delete_instance()
+                    num_rows_deleted += 1
+                page.delete_instance()
                 num_rows_deleted += 1
-            page.delete_instance()
-            num_rows_deleted += 1
-        self.delete_instance()
+            self.delete_instance()
+        # remove dead rows from DB
+        db.execute_sql('VACUUM;')
         return num_rows_deleted + 1
 
 
