@@ -95,7 +95,7 @@ class NewDocOptions(Qw.QWidget):
         # self.oem_num.setCurrentIndex(3)
 
         self.info_button = Qw.QPushButton()
-        self.info_button.setIcon(Qg.QIcon("../images/info_icon.png"))
+        self.info_button.setIcon(Qg.QIcon("../icons/info_icon.png"))
         self.info_button.clicked.connect(self.display_info)
 
         options_layout = Qw.QVBoxLayout()

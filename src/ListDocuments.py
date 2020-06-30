@@ -65,7 +65,7 @@ class ListDocuments(Qw.QWidget):
             doc_button.setVisible(True)
             self._docButtons.append(doc_button)
 
-        new_doc_button_icon = open("../images/plus_icon.png", "rb").read()
+        new_doc_button_icon = open("../icons/plus_icon.png", "rb").read()
         self.new_doc_button = SingleDocumentButton(
             'Add New Document', new_doc_button_icon, None)
         self.new_doc_button.pressed.connect(
