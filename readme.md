@@ -17,6 +17,8 @@ StudiOCR is an application to index notes and make them searchable by using OCR.
 - Select the processing model you wish to use: Best (for accuracy) or Fast (for speed)
 - Select whether you wish to do image preprocessing: convert to grayscale and increase text contrast 
 - PSM Number
+
+
 | Tables   |      Are      |  Cool |
 |----------|:-------------:|------:|
 | col 1 is |  left-aligned | $1600 |
