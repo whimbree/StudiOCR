@@ -8,7 +8,7 @@ StudiOCR is an application to index notes and make them searchable by using OCR.
 # Main Window 
 ![Image of MainWindow](https://github.com/BSpwr/StudiOCR/blob/ui/images/MainWindow.PNG)
 - Click the Add New Document button to open the add new document window interface
-- Click on a document thumbnail to open the document window interface
+- Click on a document thumbnail (which is generated from the first page) to open the document window interface
 - Toggle remove mode to remove existing documents
 ![Image of RemoveDocument](https://github.com/BSpwr/StudiOCR/blob/ui/images/RemoveDocument.PNG)
 - Search for a document based on document name by typing in the search bar with the DOC bullet selected
@@ -16,8 +16,10 @@ StudiOCR is an application to index notes and make them searchable by using OCR.
 
 ## Add New Document Window
 ![Image of AddDocument](https://github.com/BSpwr/StudiOCR/blob/ui/images/AddDocument.PNG)
-- Choose .JPG or .PNG files to be processed by OCR into a document in the database
-- Input the document name 
+- Add/Remove .JPG or .PNG files to be processed by OCR into a document in the database
+- Input the document name
+- Click on the info icon to display a window explaining document options 
+![Image of Information](https://github.com/BSpwr/StudiOCR/blob/ui/images/Information.PNG)
 - Select the processing model you wish to use: Best (for accuracy) or Fast (for speed)
 - Select whether you wish to do image preprocessing (convert to grayscale and increase text contrast) 
 - PSM Number:
@@ -38,11 +40,11 @@ PSM Number | Value
 
 ## Document Window
 ![Image of DocWindow](https://github.com/BSpwr/StudiOCR/blob/ui/images/DocWindow.PNG)
-- The first page of every document is the thumbnail shown on the Main Window
 - Enter text in the search bar to search for matching text in the document 
 - Click the Next/Previous Page buttons to cycle through the pages in the document
 - The current page number is shown at the bottom of the window
 - Toggle show matching pages to only display pages with matching text and to cycle through them 
+![Image of MatchingPages](https://github.com/BSpwr/StudiOCR/blob/ui/images/MatchingPages.PNG)
 - Box Color:
 
 Box Color | Confidence Value
