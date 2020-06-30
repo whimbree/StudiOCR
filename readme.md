@@ -6,7 +6,7 @@ StudiOCR is an application to index notes and make them searchable by using OCR.
 - Any matching text will be highlighted with a colored box based on confidence level
 
 # Main Window 
-
+![Image of MainWindow](https://github.com/BSpwr/StudiOCR/blob/ui/images/MainWindow.PNG)
 - Click the Add New Document button to open the add new document window interface
 - Click on a document thumbnail to open the document window interface
 - Toggle remove mode to switch to removing existing documents
