@@ -38,7 +38,7 @@ PSM Number | Value
 - The first page of every document is the thumbnail shown on the Main Window
 - Enter text in the search bar to search for matching text in the document 
 - Click the Next/Previous Page buttons to cycle through the pages in the document
-- The current page is shown below
+- The current page is at the bottom of the window
 - Toggle show matching pages to only display pages with matching text and cycle through them 
 - Box Color:
 
