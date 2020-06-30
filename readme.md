@@ -10,8 +10,8 @@ StudiOCR is an application to index notes and make them searchable by using OCR.
 - Click the Add New Document button to open the add new document window interface
 - Click on a document thumbnail to open the document window interface
 - Toggle remove mode to switch to removing existing documents
-- Search for a document by name by typing in the search bar with the DOC bullet selected
-- Search for a document by matching OCR text by typing in the search bar with the OCR bullet selected  
+- Search for a document based on document name by typing in the search bar with the DOC bullet selected
+- Search for a document based on matching OCR text by typing in the search bar with the OCR bullet selected  
 
 ## Add New Document Window
 - Choose .JPG or .PNG files to be processed by OCR into a document in the database
