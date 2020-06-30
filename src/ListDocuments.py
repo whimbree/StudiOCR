@@ -127,7 +127,7 @@ class ListDocuments(Qw.QWidget):
         doc_button.pressed.connect(
             lambda doc=doc: self.create_doc_window(doc))
         self._docButtons.append(doc_button)
-        self.render_doc_grid()
+        self.update_filter()
         db.close()
 
     def create_doc_window(self, doc):
