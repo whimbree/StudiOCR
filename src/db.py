@@ -31,6 +31,8 @@ class OcrDocument(BaseModel):
                 page.delete_instance()
                 num_rows_deleted += 1
             self.delete_instance()
+        # remove dead rows from DB
+        db.execute_sql('VACUUM;')
         return num_rows_deleted + 1
 
 
