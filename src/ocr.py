@@ -1,8 +1,15 @@
 import cv2
+
+import numpy as np
+from peewee import fn
+import pickle
+from PIL import Image
 import pytesseract
 from pytesseract import Output
 
 from db import (db, OcrDocument, OcrPage, OcrBlock, create_tables)
+from ImagePipeline import ImagePipeline
+from OcrPageData import OcrPageData
 
 # This entire file must be redone with objects
 # This is just a quick demo to show how to get started with OCR
@@ -12,26 +19,79 @@ from db import (db, OcrDocument, OcrPage, OcrBlock, create_tables)
 
 
 # This class will process a multi page document as images and then store it in the database
-class OcrProcess():
-    def __init__(self, name: str):
+# This class will process a multi page document as images and then store it in the database
+class OcrProcess:
+    """Processes image for each page of a document and then integrates with Sqlite database"""
+
+    def __init__(self, name: str) -> None:
+        """
+        Initializes processing information
+
+        Parameters
+        name - name / title of document
+        """
         self._name = name
         self._data = list()
         self.doc_id = None
 
-    def process_image(self, image_filepath: str):
-        # Maybe further postprocessing is needed for a better result
-        # TODO: allow users to specify a custom config?
-        # TODO: allow users to specify fast vs. best models
-        custom_config = r'-l eng --psm 3 --tessdata-dir "../tessdata/fast"'
-        image = cv2.imread(image_filepath)
-        # Convert to RGB colorspace for Tesseract OCR
-        image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
-        page_data = pytesseract.image_to_data(
-            image, config=custom_config, output_type=Output.DICT)
-        image_file = open(image_filepath, 'rb')
-        self._data.append((page_data, image_file.read()))
+    def process_image(self, image_filepath: str, oem: int = 3, psm: int = 3, best: bool = True, preprocessing: bool = False) -> None:
+        """
+        Processes image using ImagePipeline
 
-    def commit_data(self):
+        Parameters
+        image_filepath - filepath where image is stored
+        oem - OCR engine mode (0-3)
+        psm - page segmentation mode (0-13)
+        best - whether to use the best model (or fast model)
+        preprocessing - whether to refine image temporarily with ImagePipeline before running pytesseract
+        """
+        try:
+            if oem not in range(4):
+                raise ValueError(
+                    'oem must be an integer between 0 and 3 inclusive')
+            if psm not in range(14):
+                raise ValueError(
+                    'psm must be an integer between 0 and 13 inclusive')
+        except ValueError as error:
+            print(str(error))
+            return
+
+        tessdata_best_path = '../tessdata/best'
+        tessdata_fast_path = '../tessdata/fast'
+
+        tessdata_path = tessdata_best_path if best else tessdata_fast_path
+
+        custom_config = f'--oem {oem} --psm {psm} --tessdata-dir {tessdata_path}'
+
+        # Running pipeline and collecting image metadata
+        image_cv2 = cv2.imread(filename=image_filepath, flags=cv2.IMREAD_COLOR)
+        # Image to be stored - cv2 / numpy array format
+        # cv2 stores images in BGR format, but pytesseract assumes RGB format. Perform conversion.
+        rgb_image_cv2 = cv2.cvtColor(src=image_cv2, code=cv2.COLOR_BGR2RGB)
+
+        # Setting up and running image processing pipeline, if necessary
+        image_pipeline = ImagePipeline()
+        image_pipeline.add_step(name='Grayscale', new_step=cv2.cvtColor,
+                                image_param_name='src', other_params={'code': cv2.COLOR_RGB2GRAY})
+        image_pipeline.add_step(name='Binary Threshold', new_step=cv2.threshold, image_param_name='src', other_params={
+                                'thresh': 20, 'maxval': 255, 'type': cv2.THRESH_BINARY}, capture_index=1)
+
+        # Image to be directly stored in db as RGB image in bytes with no loss during compression
+        # cv2.imencode is expecting BGR image, not RGB
+        image_stored_bytes = cv2.imencode(ext='.jpg', img=image_cv2, params=[
+                                          cv2.IMWRITE_JPEG_QUALITY, 100])[1].tostring()
+        image_for_pytesseract = image_pipeline.run(
+            image=rgb_image_cv2) if preprocessing else rgb_image_cv2
+        # Collects metadata on page text after refining with pipeline
+        page_data = pytesseract.image_to_data(
+            image=image_for_pytesseract, config=custom_config, output_type=Output.DICT)
+
+        # OCRPageData object creation
+        # Metadata on pipeline-refined image
+        ocr_page_data = OcrPageData(image_to_data=page_data)
+        self._data.append((page_data, image_stored_bytes, ocr_page_data))
+
+    def commit_data(self) -> int:
         # If the database doesn't exist yet, generate it
         create_tables()
         db.connect(reuse_if_open=True)
@@ -39,39 +99,25 @@ class OcrProcess():
             # Create a new entry for the document to link the pages and boxes to
             doc = OcrDocument.create(name=self._name)
             self.doc_id = doc.id
-            for i, (page_data, image_file) in enumerate(self._data):
-                page = OcrPage.create(
-                    number=i, image=image_file, document=doc.id)
-                for i in range(len(page_data['text'])):
-                    text_nospace = page_data['text'][i]
-                    text_nospace.replace(" ", "")
-                    if len(text_nospace) > 0:
-                        OcrBlock.create(page=page.id, left=page_data['left'][i], top=page_data['top'][i],
-                                        width=page_data['width'][i], height=page_data['height'][i],
-                                        conf=page_data['conf'][i], text=page_data['text'][i])
-        db.close()
+
+            # Adding OcrPage objects to database
+            for page_number, (page_data, image_file, ocr_page_data) in enumerate(self._data):
+                page = OcrPage.create(number=page_number, image=image_file,
+                                      document=doc.id, ocr_page_data=pickle.dumps(obj=ocr_page_data))
+                for text_index, text in enumerate(page_data['text']):
+                    if not text.isspace():  # Uploads non-space text pieces only
+                        OcrBlock.create(page=page.id, left=page_data['left'][text_index],
+                                        top=page_data['top'][text_index],
+                                        width=page_data['width'][text_index], height=page_data['height'][text_index],
+                                        conf=page_data['conf'][text_index], text=text)
         return self.doc_id
 
-# Usage
-#ocr = OcrProcess('test6')
-# ocr.process_image('../src/OCR/einstein_quote.jpg')
-# ocr.process_image('../src/OCR/generatedtext.jpg')
-# ocr.process_image('../src/OCR/handwritten_digits.jpg')
-# ocr.commit_data()
+    @property
+    def name(self) -> str:
+        """Gets document name / title"""
+        return self._name
 
-
-# Utility function to rescale an image while maintaining aspect ratio, is this the right place for it?
-def resize_keep_aspect_ratio(image, width=None, height=None, inter=cv2.INTER_AREA):
-    new_dim = None
-    h, w = image.shape[:2]
-
-    if width is None and height is None:
-        return image
-    elif width is None:
-        ratio = height / h
-        new_dim = (int(w * ratio), height)
-    else:
-        ratio = width / w
-        new_dim = (width, int(h * ratio))
-
-    return cv2.resize(image, new_dim, interpolation=inter)
+    @name.setter
+    def name(self, new_name: str) -> None:
+        """Sets new document  name / title"""
+        self._name = new_name

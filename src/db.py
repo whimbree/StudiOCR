@@ -1,4 +1,4 @@
-from peewee import (Model, PrimaryKeyField, CharField,
+from peewee import (Model, Check, PrimaryKeyField, CharField,
                     IntegerField, BlobField, ForeignKeyField, TextField)
 from playhouse.sqlite_ext import SqliteExtDatabase
 
@@ -37,8 +37,9 @@ class OcrDocument(BaseModel):
 # Also stores the original image file of the page
 class OcrPage(BaseModel):
     id = PrimaryKeyField(null=False)
-    number = IntegerField()
-    image = BlobField()
+    number = IntegerField(null=False and Check('number >= 0'))
+    image = BlobField(null=False)
+    ocr_page_data = BlobField(null=False)
     document = ForeignKeyField(OcrDocument, backref='pages')
 
 
@@ -58,7 +59,7 @@ class OcrBlock(BaseModel):
 # Helper function to intially create the tables in the database
 def create_tables():
     with db:
-        db.create_tables([OcrDocument, OcrPage, OcrBlock])
+        db.create_tables([OcrDocument, OcrPage, OcrBlock], safe=True)
 
 # Usage
 # test = OcrDocument.get(OcrDocument.name == 'test')
