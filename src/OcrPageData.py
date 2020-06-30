@@ -20,24 +20,30 @@ class OcrPageData:
         try:
             required_keys = {'left', 'top', 'width', 'height', 'conf', 'text'}
             if not np.all(a=[key in set(image_to_data.keys()) for key in required_keys]):
-                raise ValueError('given image_to_data dict is incomplete in data')
+                raise ValueError(
+                    'given image_to_data dict is incomplete in data')
         except ValueError as error:
             print(str(error))
             return
 
         result_data = image_to_data
-        text_index = np.array([], dtype=int)  # index of text in original image_to_data['text'] array
+        # index of text in original image_to_data['text'] array
+        text_index = np.array([], dtype=int)
         for index, text in enumerate(np.asarray(a=result_data['text']), start=0):
             if not text.isspace():
                 text_index = np.append(arr=text_index, values=index)
 
         raw_texts = result_data['text']
         texts = np.asarray(a=raw_texts)[text_index]
-        self.__text_counter = Counter(texts)  # Counts number of occurrences of each text piece
-        self.__texts = np.asarray(a=sorted(list(self.text_counter.keys())))  # Unique detected texts, sorted alphabetically
+        # Counts number of occurrences of each text piece
+        self.__text_counter = Counter(texts)
+        # Unique detected texts, sorted alphabetically
+        self.__texts = np.asarray(a=sorted(list(self.text_counter.keys())))
         chars = list(''.join(result_data['text']))
-        self.__char_counter = Counter(chars)  # Counts number of occurences of each character
-        self.__chars = np.asarray(a=sorted(list(self.char_counter.keys())))  # Unique number of occurrences of each character, sorted alphabetically
+        # Counts number of occurences of each character
+        self.__char_counter = Counter(chars)
+        # Unique number of occurrences of each character, sorted alphabetically
+        self.__chars = np.asarray(a=sorted(list(self.char_counter.keys())))
 
         # Retrieving text bounding box information
         self.__left = np.asarray(a=result_data['left'])[text_index]
@@ -47,10 +53,11 @@ class OcrPageData:
 
         # Retrieving confidence level information as a dict of sets of conf values for a unique text
         raw_confidence_levels = result_data['conf']
-        confidence_levels = np.asarray(a=raw_confidence_levels)[text_index]  # Corresponds to kept texts
+        confidence_levels = np.asarray(a=raw_confidence_levels)[
+            text_index]  # Corresponds to kept texts
         self.__confidence_level = dict()
         for text, conf in zip(texts, confidence_levels):
-            if text in self.__confidence_level: # Check if text is already added
+            if text in self.__confidence_level:  # Check if text is already added
                 self.__confidence_level[text].add(conf)
             else:
                 self.__confidence_level.update({text: {conf}})
@@ -77,11 +84,11 @@ class OcrPageData:
 
     def char_histogram(self) -> (np.ndarray, np.ndarray):
         """Histogram of frequencies for each ASCII character"""
-        frequency = OrderedDict([(ascii_value, 0) for ascii_value in np.arange(32, 127)])
+        frequency = OrderedDict([(ascii_value, 0)
+                                 for ascii_value in np.arange(32, 127)])
         for character in list(self.char_counter.keys()):
             frequency[ord(character)] = self.char_counter[character]
 
-        print(frequency)
         return np.asarray(a=list(frequency.values())), np.asarray(a=list(frequency.keys()))
 
     @property

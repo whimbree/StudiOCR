@@ -63,9 +63,3 @@ class OcrBlock(BaseModel):
 def create_tables():
     with db:
         db.create_tables([OcrDocument, OcrPage, OcrBlock], safe=True)
-
-# Usage
-# test = OcrDocument.get(OcrDocument.name == 'test')
-# for t in test.pages:
-#     for b in t.blocks:
-#         print(b.text)

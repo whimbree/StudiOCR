@@ -63,8 +63,9 @@ class ListDocuments(Qw.QWidget):
             doc_button.setVisible(True)
             self._docButtons.append(doc_button)
 
+        new_doc_button_icon = open("../images/plus_icon.png", "rb").read()
         self.new_doc_button = SingleDocumentButton(
-            'Add New Document', None, None)
+            'Add New Document', new_doc_button_icon, None)
         self.new_doc_button.pressed.connect(
             lambda: self.create_new_doc_window())
 
@@ -154,11 +155,11 @@ class ListDocuments(Qw.QWidget):
                 self._docButtons.remove(button_to_remove)
                 self.update_filter()
                 db.connect(reuse_if_open=True)
-                print(doc.delete_document())
+                doc.delete_document()
                 db.close()
         else:
             if self.ocr_search.isChecked():
-                self.doc_window = DocWindow(doc, self._filter)
+                self.doc_window = DocWindow(doc, self, self._filter)
             else:
                 self.doc_window = DocWindow(doc, self)
             self.doc_window.show()

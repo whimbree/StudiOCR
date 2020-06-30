@@ -116,7 +116,6 @@ class ImagePipeline:
         image_current = image
         for name, step in list(self.pipeline.items())[start:end]:
             """Run each function sequentially in pipeline"""
-            print(name)
             outer_function = step.outer_function
             func = step.new_step
             image_param_name = step.image_param_name
