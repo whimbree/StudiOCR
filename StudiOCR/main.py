@@ -1,4 +1,5 @@
 import sys
+sys.path.append("..") # When launching from source, include StudiOCR folder
 import signal
 from multiprocessing import Queue, Pipe
 
