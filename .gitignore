@@ -1,10 +1,16 @@
 # Ignore IDE specific stuff
-/.idea
-/.vscode
+**/.idea
+**/.vscode
 
 # Ignore venv packages
-/venv
+**/venv
 
-/src/__pycache__
+**/__pycache__
 
-*.db
+**/*.db
+
+**/.DS_Store
+
+**/*.egg-info
+
+**/dist
