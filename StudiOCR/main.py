@@ -1,4 +1,5 @@
 import sys
+import signal
 from multiprocessing import Queue, Pipe
 
 from PySide2 import QtCore as Qc
@@ -6,16 +7,17 @@ from PySide2 import QtWidgets as Qw
 from PySide2 import QtGui as Qg
 import qdarkstyle
 
-import wsl
-from db import create_tables, db
-from MainWindow import MainWindow
-from OcrWorker import StatusEmitter, OcrWorker
+import StudiOCR.wsl as wsl
+from StudiOCR.db import create_tables, db
+from StudiOCR.MainWindow import MainWindow
+from StudiOCR.OcrWorker import StatusEmitter, OcrWorker
 
 # References
 # https://doc.qt.io/qtforpython/
 
-
 def main():
+    signal.signal(signal.SIGINT, signal.SIG_DFL)
+    
     # If the database has not been created, then create it
     create_tables()
 
@@ -40,7 +42,7 @@ def main():
         queue.put(None)
         ocr_process.join()
         db.close()
-
+        
     window = MainWindow(queue, status_emitter)  # Create main window
 
     app.setStyleSheet(qdarkstyle.load_stylesheet(qt_api='pyside2'))
@@ -50,9 +52,8 @@ def main():
     ocr_process.start()  # Start child process
 
     app.aboutToQuit.connect(quit_processes)
-    app.exec_()  # Start application
-
-    exit(0)
+        
+    sys.exit(app.exec_())
 
 
 if __name__ == "__main__":

@@ -4,9 +4,9 @@ from PySide2 import QtCore as Qc
 from PySide2 import QtWidgets as Qw
 from PySide2 import QtGui as Qg
 
-from db import (db, OcrDocument, OcrPage, OcrBlock, create_tables)
-from OcrWorker import StatusEmitter
-from ListDocuments import ListDocuments
+from StudiOCR.db import (db, OcrDocument, OcrPage, OcrBlock, create_tables)
+from StudiOCR.OcrWorker import StatusEmitter
+from StudiOCR.ListDocuments import ListDocuments
 
 
 class MainWindow(Qw.QMainWindow):

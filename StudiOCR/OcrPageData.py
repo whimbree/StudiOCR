@@ -1,4 +1,3 @@
-
 from collections import Counter, OrderedDict
 import numpy as np
 import pytesseract

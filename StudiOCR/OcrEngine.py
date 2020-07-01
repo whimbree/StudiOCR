@@ -7,9 +7,10 @@ from PIL import Image
 import pytesseract
 from pytesseract import Output
 
-from db import (db, OcrDocument, OcrPage, OcrBlock, create_tables)
-from ImagePipeline import ImagePipeline
-from OcrPageData import OcrPageData
+from StudiOCR.util import get_absolute_path
+from StudiOCR.db import (db, OcrDocument, OcrPage, OcrBlock, create_tables)
+from StudiOCR.ImagePipeline import ImagePipeline
+from StudiOCR.OcrPageData import OcrPageData
 
 
 class OcrEngine:
@@ -48,8 +49,8 @@ class OcrEngine:
             print(str(error))
             return
 
-        tessdata_best_path = '../tessdata/best'
-        tessdata_fast_path = '../tessdata/fast'
+        tessdata_best_path = get_absolute_path( 'tessdata/best')
+        tessdata_fast_path =  get_absolute_path('tessdata/fast')
 
         tessdata_path = tessdata_best_path if best else tessdata_fast_path
 

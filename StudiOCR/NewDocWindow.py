@@ -2,7 +2,8 @@ from PySide2 import QtCore as Qc
 from PySide2 import QtWidgets as Qw
 from PySide2 import QtGui as Qg
 
-from db import (db, OcrDocument, OcrPage, OcrBlock, create_tables)
+from StudiOCR.util import get_absolute_path
+from StudiOCR.db import (db, OcrDocument, OcrPage, OcrBlock, create_tables)
 
 
 class NewDocWindow(Qw.QDialog):
@@ -95,7 +96,7 @@ class NewDocOptions(Qw.QWidget):
         # self.oem_num.setCurrentIndex(3)
 
         self.info_button = Qw.QPushButton()
-        self.info_button.setIcon(Qg.QIcon("../icons/info_icon.png"))
+        self.info_button.setIcon(Qg.QIcon(get_absolute_path("icons/info_icon.png")))
         self.info_button.clicked.connect(self.display_info)
 
         options_layout = Qw.QVBoxLayout()
@@ -220,7 +221,7 @@ class NewDocOptions(Qw.QWidget):
         document options
         """
         text_file = Qw.QTextBrowser()
-        text = open("../information_doc_options.txt").read()
+        text = open(get_absolute_path("information_doc_options.txt")).read()
         text_file.setText(text)
         dialog = Qw.QDialog(parent=self)
 

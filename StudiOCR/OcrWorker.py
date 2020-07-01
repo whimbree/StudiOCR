@@ -5,8 +5,8 @@ from PySide2 import QtCore as Qc
 from PySide2 import QtWidgets as Qw
 from PySide2 import QtGui as Qg
 
-from db import (db, OcrDocument, OcrPage, OcrBlock, create_tables)
-from OcrEngine import OcrEngine
+from StudiOCR.db import (db, OcrDocument, OcrPage, OcrBlock, create_tables)
+from StudiOCR.OcrEngine import OcrEngine
 
 
 class StatusEmitter(Qc.QThread):

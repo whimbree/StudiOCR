@@ -2,10 +2,10 @@ from PySide2 import QtCore as Qc
 from PySide2 import QtWidgets as Qw
 from PySide2 import QtGui as Qg
 
-from db import (db, OcrDocument, OcrPage, OcrBlock, create_tables)
-from DocWindow import DocWindow
-from NewDocWindow import NewDocWindow
-
+from StudiOCR.util import get_absolute_path
+from StudiOCR.db import (db, OcrDocument, OcrPage, OcrBlock, create_tables)
+from StudiOCR.DocWindow import DocWindow
+from StudiOCR.NewDocWindow import NewDocWindow
 
 class ListDocuments(Qw.QWidget):
     """
@@ -65,7 +65,7 @@ class ListDocuments(Qw.QWidget):
             doc_button.setVisible(True)
             self._docButtons.append(doc_button)
 
-        new_doc_button_icon = open("../icons/plus_icon.png", "rb").read()
+        new_doc_button_icon = open(get_absolute_path("icons/plus_icon.png"), "rb").read()
         self.new_doc_button = SingleDocumentButton(
             'Add New Document', new_doc_button_icon, None)
         self.new_doc_button.pressed.connect(

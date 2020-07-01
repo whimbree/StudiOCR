@@ -2,8 +2,10 @@ from peewee import (Model, Check, PrimaryKeyField, CharField,
                     IntegerField, BlobField, ForeignKeyField, TextField)
 from playhouse.sqlite_ext import SqliteExtDatabase
 
+from StudiOCR.util import get_absolute_path
+
 # Should likely change where the database files are stored
-DATABASE = 'ocr_files.db'
+DATABASE = get_absolute_path('ocr_files.db')
 
 # Do we need c extensions?
 db = SqliteExtDatabase(DATABASE, autoconnect=False, c_extensions=False, pragmas={
