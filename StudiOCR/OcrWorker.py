@@ -66,8 +66,8 @@ class OcrWorker(Process):
             page_length = len(filepaths)
             ocr = OcrEngine(name)
             for idx, filepath in enumerate(filepaths):
-                ocr.process_image(image_filepath=filepath, oem=oem,
-                                  psm=psm, best=best, preprocessing=preprocessing)
+                ocr.process_file(filepath=filepath, oem=oem,
+                                 psm=psm, best=best, preprocessing=preprocessing)
                 self.to_output.send(((idx / page_length)*100, None))
             doc_id = ocr.commit_data()
             self.to_output.send((100, doc_id))

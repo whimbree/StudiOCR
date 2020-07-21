@@ -1,4 +1,5 @@
 import pickle
+import os
 
 import numpy as np
 from peewee import fn
@@ -6,6 +7,9 @@ import cv2
 from PIL import Image
 import pytesseract
 from pytesseract import Output
+
+from pdf2image import convert_from_path, convert_from_bytes
+
 
 from StudiOCR.util import get_absolute_path
 from StudiOCR.db import (db, OcrDocument, OcrPage, OcrBlock, create_tables)
@@ -27,17 +31,18 @@ class OcrEngine:
         self._data = list()
         self.doc_id = None
 
-    def process_image(self, image_filepath: str, oem: int = 3, psm: int = 3, best: bool = True, preprocessing: bool = False) -> None:
+    def process_file(self, filepath: str, oem: int = 3, psm: int = 3, best: bool = True, preprocessing: bool = False) -> None:
         """
         Processes image using ImagePipeline
 
         Parameters
-        image_filepath - filepath where image is stored
+        filepath - filepath where image or PDF is stored
         oem - OCR engine mode (0-3)
         psm - page segmentation mode (0-13) Modes 0-2 don't perform OCR, so don't allow those
         best - whether to use the best model (or fast model)
         preprocessing - whether to refine image temporarily with ImagePipeline before running pytesseract
         """
+
         try:
             if oem not in range(4):
                 raise ValueError(
@@ -49,15 +54,33 @@ class OcrEngine:
             print(str(error))
             return
 
-        tessdata_best_path = get_absolute_path( 'tessdata/best')
-        tessdata_fast_path =  get_absolute_path('tessdata/fast')
+        filename, file_extension = os.path.splitext(filepath)
 
-        tessdata_path = tessdata_best_path if best else tessdata_fast_path
+        # If it's a pdf, then process each page as an image
+        if file_extension == '.pdf':
+            images = convert_from_path(filepath)
+            # Convert PIL to cv2
+            for image in images:
+                image_cv2 = cv2.cvtColor(np.array(image), cv2.COLOR_RGB2BGR)
+                self.process_image(image_cv2, {'oem': oem, 'psm': psm,
+                                               'best': best, 'preprocessing': preprocessing})
+        else:
+            image_cv2 = cv2.imread(
+                filename=filepath, flags=cv2.IMREAD_COLOR)
+            self.process_image(image_cv2, {'oem': oem, 'psm': psm,
+                                           'best': best, 'preprocessing': preprocessing})
 
-        custom_config = f'--oem {oem} --psm {psm} --tessdata-dir {tessdata_path}'
+    def process_image(self, image_cv2: np.ndarray, options: dict) -> None:
+
+        tessdata_best_path = get_absolute_path('tessdata/best')
+        tessdata_fast_path = get_absolute_path('tessdata/fast')
+
+        tessdata_path = tessdata_best_path if options['best'] else tessdata_fast_path
+
+        custom_config = f'--oem {options["oem"]} --psm {options["psm"]} --tessdata-dir "{tessdata_path}"'
 
         # Running pipeline and collecting image metadata
-        image_cv2 = cv2.imread(filename=image_filepath, flags=cv2.IMREAD_COLOR)
+
         # Image to be stored - cv2 / numpy array format
         # cv2 stores images in BGR format, but pytesseract assumes RGB format. Perform conversion.
         rgb_image_cv2 = cv2.cvtColor(src=image_cv2, code=cv2.COLOR_BGR2RGB)
@@ -74,7 +97,7 @@ class OcrEngine:
         image_stored_bytes = cv2.imencode(ext='.jpg', img=image_cv2, params=[
                                           cv2.IMWRITE_JPEG_QUALITY, 100])[1].tostring()
         image_for_pytesseract = image_pipeline.run(
-            image=rgb_image_cv2) if preprocessing else rgb_image_cv2
+            image=rgb_image_cv2) if options['preprocessing'] else rgb_image_cv2
         # Collects metadata on page text after refining with pipeline
         page_data = pytesseract.image_to_data(
             image=image_for_pytesseract, config=custom_config, output_type=Output.DICT)

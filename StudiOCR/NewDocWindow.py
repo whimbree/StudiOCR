@@ -96,7 +96,8 @@ class NewDocOptions(Qw.QWidget):
         # self.oem_num.setCurrentIndex(3)
 
         self.info_button = Qw.QPushButton()
-        self.info_button.setIcon(Qg.QIcon(get_absolute_path("icons/info_icon.png")))
+        self.info_button.setIcon(
+            Qg.QIcon(get_absolute_path("icons/info_icon.png")))
         self.info_button.clicked.connect(self.display_info)
 
         options_layout = Qw.QVBoxLayout()
@@ -141,8 +142,8 @@ class NewDocOptions(Qw.QWidget):
         file_dialog = Qw.QFileDialog(self)
         file_dialog.setStyleSheet(self.dropdown_style)
         file_dialog.setFileMode(Qw.QFileDialog.ExistingFiles)
-        file_dialog.setNameFilter(
-            "Images (*.png *.jpg)")
+        file_dialog.setNameFilters([
+            "Images (*.png *.jpg)", "PDF Files (*.pdf)"])
         file_dialog.selectNameFilter("Images (*.png *.jpg)")
 
         if file_dialog.exec_():
