@@ -1,9 +1,13 @@
+import os
+import shutil
+
 from PySide2 import QtCore as Qc
 from PySide2 import QtWidgets as Qw
 from PySide2 import QtGui as Qg
 
 from StudiOCR.util import get_absolute_path
 from StudiOCR.db import (db, OcrDocument, OcrPage, OcrBlock, create_tables)
+from StudiOCR.PdfToImage import PDFToImage
 
 
 class NewDocWindow(Qw.QDialog):
@@ -11,8 +15,10 @@ class NewDocWindow(Qw.QDialog):
     New Document Window Class: the window that appears when the user tries to insert a new document
     """
 
-    def __init__(self, new_doc_cb, parent=None, *args, **kwargs):
-        super().__init__(parent=parent, *args, **kwargs)
+    close_event_signal = Qc.Signal(None)
+
+    def __init__(self, new_doc_cb, parent=None):
+        super().__init__(parent=parent)
         self.new_doc_cb = new_doc_cb
 
         self.setWindowTitle("Add New Document")
@@ -22,7 +28,10 @@ class NewDocWindow(Qw.QDialog):
             desktop.primaryScreen()).size()
         self.resize(desktop_size.width() * 0.2, desktop_size.height() * 0.6)
 
-        self.settings = NewDocOptions(self.close, self.new_doc_cb)
+        self.settings = NewDocOptions(self.new_doc_cb, parent=self)
+        self.settings.close_on_submit_signal.connect(self.close_on_submit)
+
+        self.submitted = False
 
         layout = Qw.QHBoxLayout()
         layout.addWidget(self.settings)
@@ -30,16 +39,31 @@ class NewDocWindow(Qw.QDialog):
         # ^Done with a "Files Chosen" section down below
         self.setLayout(layout)
 
+    # If we are closing on submit, do not send close_event_signal to child
+    # We need to preserve the temporary image files for processing
+    def close_on_submit(self):
+        self.submitted = True
+        self.close()
+
+    def closeEvent(self, e):
+        if not self.submitted:
+            self.close_event_signal.emit()
+
 
 class NewDocOptions(Qw.QWidget):
     """
     Contains the methods for new document insertion: model selection and add/remove/display functionality
     """
 
-    def __init__(self, close_cb, new_doc_cb, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        self.close_cb = close_cb
+    close_on_submit_signal = Qc.Signal(None)
+
+    def __init__(self, new_doc_cb, parent=None):
+        super().__init__(parent)
+
         self.new_doc_cb = new_doc_cb
+        self.parent = parent
+
+        self.parent.close_event_signal.connect(self.cleanup_temp_files)
 
         self.choose_file_button = Qw.QPushButton("Add files")
         self.choose_file_button.clicked.connect(self.choose_files)
@@ -116,6 +140,7 @@ class NewDocOptions(Qw.QWidget):
 
         self.file_names_label = Qw.QLabel("Files Chosen: ")
         self.listwidget = Qw.QListWidget()
+        self.listwidget.itemSelectionChanged.connect(self.update_file_previews)
         self.listwidget.setDragEnabled(True)
         self.listwidget.setAcceptDrops(True)
         self.listwidget.setDropIndicatorShown(True)
@@ -134,6 +159,18 @@ class NewDocOptions(Qw.QWidget):
         layout.addWidget(self.options)
         layout.addWidget(self.submit, alignment=Qc.Qt.AlignBottom)
         self.setLayout(layout)
+
+        # For the preview image feature, keep two data types
+        # Dictionary that stores PDF filepath -> ([image filepaths], temp_dir)
+        self.pdf_previews = {}
+        # A list of image filenames, in order, for going back and forth through the preview images
+        self.preview_image_filenames = []
+        self.preview_image_index = 0
+
+    def cleanup_temp_files(self):
+        for key in self.pdf_previews:
+            shutil.rmtree(self.pdf_previews[key][1])
+        self.pdf_previews = {}
 
     def choose_files(self):
         """
@@ -157,6 +194,8 @@ class NewDocOptions(Qw.QWidget):
                         self.listwidget.count(), file_name)
                     itemsTextList.append(file_name)
 
+        self.update_file_previews()
+
     def remove_files(self):
         """
         Removes the selected files in listwidget upon button press
@@ -172,7 +211,60 @@ class NewDocOptions(Qw.QWidget):
             msg.exec_()
         else:
             for item in items:
+
+                # If the item being deleted is a PDF, ensure that we remove the temp files
+                if item.text() in self.pdf_previews:
+                    shutil.rmtree(self.pdf_previews[item.text()][1])
+                    del self.pdf_previews[item.text()]
+
                 self.listwidget.takeItem(self.listwidget.row(item))
+
+        self.update_file_previews()
+
+    def update_file_previews(self):
+        """
+        Update the file previews on file change
+        """
+
+        to_process = []
+        for index in range(self.listwidget.count()):
+            filepath = self.listwidget.item(index).text()
+            filename, file_extension = os.path.splitext(filepath)
+            if file_extension == '.pdf' and filepath not in self.pdf_previews:
+                # If the file is a PDF, save the path into a queue for processing in a separate process
+                # We do not want to block the GUI Thread
+                to_process.append(filepath)
+
+        if len(to_process) > 0:
+            self.pdf_image_process = PDFToImage(self)
+            self.pdf_image_process.done_signal.connect(
+                self.complete_update_file_previews)
+
+            self.pdf_image_process.pdf_filenames = to_process
+            self.pdf_image_process.run()
+        else:
+            self.complete_update_file_previews({})
+
+    @Qc.Slot(object)
+    def complete_update_file_previews(self, result):
+        self.pdf_previews.update(result)
+
+        preview_image_filenames = []
+        for index in range(self.listwidget.count()):
+            filepath = self.listwidget.item(index).text()
+            _, file_extension = os.path.splitext(filepath)
+            if file_extension == '.pdf' and filepath in self.pdf_previews:
+                preview_image_filenames.extend(self.pdf_previews[filepath][0])
+            else:
+                preview_image_filenames.append(filepath)
+
+        if self.preview_image_index >= len(preview_image_filenames):
+            self.preview_image_index = len(preview_image_filenames) - 1
+
+        print(preview_image_filenames)
+        self.preview_image_filenames = preview_image_filenames
+
+        # TODO: Re-render current preview image
 
     def process_document(self):
         """
@@ -213,7 +305,7 @@ class NewDocOptions(Qw.QWidget):
             preprocessing = bool(self.processing_options.currentIndex())
             self.new_doc_cb(name, file_names, oem_number,
                             psm_number, best, preprocessing)
-            self.close_cb()
+            self.close_on_submit_signal.emit()
         db.close()
 
     def display_info(self):

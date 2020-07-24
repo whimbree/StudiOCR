@@ -78,7 +78,7 @@ class MainUI(Qw.QWidget):
         self.welcome_label = Qw.QLabel('Welcome to StudiOCR')
         self.welcome_label.setAlignment(Qc.Qt.AlignCenter)
 
-        self.documents = ListDocuments(self.new_doc_cb, *args, **kwargs)
+        self.documents = ListDocuments(self.new_doc_cb, self)
 
         self.layout = Qw.QVBoxLayout()
         self.layout.addWidget(self.welcome_label, alignment=Qc.Qt.AlignTop)

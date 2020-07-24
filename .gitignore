@@ -3,7 +3,7 @@
 **/.vscode
 
 # Ignore venv packages
-**/venv
+**/*venv*
 
 **/__pycache__
 
