@@ -50,6 +50,44 @@ class NewDocWindow(Qw.QDialog):
             self.close_event_signal.emit()
 
 
+class DragList(Qw.QListWidget):
+    """
+    Subclass QListWidget to allow user to drag and drop files
+    """
+
+    file_dropped_signal = Qc.Signal(list)
+    drag_complete_signal = Qc.Signal(None)
+
+    def __init__(self, parent=None):
+        super().__init__(parent)
+
+        self.setDragEnabled(True)
+        self.setAcceptDrops(True)
+        self.setDropIndicatorShown(True)
+        self.setDragDropMode(Qw.QAbstractItemView.InternalMove)
+        self.setSelectionMode(
+            Qw.QAbstractItemView.ExtendedSelection)
+
+    def dragEnterEvent(self, e):
+        if e.mimeData().hasUrls():
+            e.accept()
+        else:
+            super().dragEnterEvent(e)
+
+    def dropEvent(self, e):
+        if e.mimeData().hasUrls():
+            e.setDropAction(Qc.Qt.CopyAction)
+            e.accept()
+            filepaths = []
+            for url in e.mimeData().urls():
+                filepaths.append(str(url.toLocalFile()))
+
+            self.file_dropped_signal.emit(filepaths)
+        else:
+            super().dropEvent(e)
+        self.drag_complete_signal.emit()
+
+
 class NewDocOptions(Qw.QWidget):
     """
     Contains the methods for new document insertion: model selection and add/remove/display functionality
@@ -139,14 +177,9 @@ class NewDocOptions(Qw.QWidget):
         self.options.setLayout(options_layout)
 
         self.file_names_label = Qw.QLabel("Files Chosen: ")
-        self.listwidget = Qw.QListWidget()
-        self.listwidget.itemSelectionChanged.connect(self.update_file_previews)
-        self.listwidget.setDragEnabled(True)
-        self.listwidget.setAcceptDrops(True)
-        self.listwidget.setDropIndicatorShown(True)
-        self.listwidget.setDragDropMode(Qw.QAbstractItemView.InternalMove)
-        self.listwidget.setSelectionMode(
-            Qw.QAbstractItemView.ExtendedSelection)
+        self.listwidget = DragList(self)
+        self.listwidget.file_dropped_signal.connect(self.insert_files)
+        self.listwidget.drag_complete_signal.connect(self.update_file_previews)
 
         self.submit = Qw.QPushButton("Process Document")
         self.submit.clicked.connect(self.process_document)
@@ -180,21 +213,40 @@ class NewDocOptions(Qw.QWidget):
         file_dialog.setStyleSheet(self.dropdown_style)
         file_dialog.setFileMode(Qw.QFileDialog.ExistingFiles)
         file_dialog.setNameFilters([
-            "Images (*.png *.jpg)", "PDF Files (*.pdf)"])
-        file_dialog.selectNameFilter("Images (*.png *.jpg)")
+            "Images (*.png *.jpg *.jpeg)", "PDF Files (*.pdf)"])
+        file_dialog.selectNameFilter("Images (*.png *.jpg *.jpeg)")
 
         if file_dialog.exec_():
-            file_names = file_dialog.selectedFiles()
-            # Insert the file(s) into listwidget unless it is a duplicate
-            itemsTextList = [self.listwidget.item(
-                i).text() for i in range(self.listwidget.count())]
-            for file_name in file_names:
-                if file_name not in itemsTextList:
-                    self.listwidget.insertItem(
-                        self.listwidget.count(), file_name)
-                    itemsTextList.append(file_name)
+            filepaths = file_dialog.selectedFiles()
+            self.insert_files(filepaths)
 
         self.update_file_previews()
+
+    @Qc.Slot(list)
+    def insert_files(self, filepaths):
+        # Insert the file(s) into listwidget unless it is a duplicate
+        items_list = [self.listwidget.item(
+            i).text() for i in range(self.listwidget.count())]
+        allowed_extensions = ['.jpg', '.jpeg', '.png', '.pdf']
+        had_invalid_extension = False
+        for filepath in filepaths:
+            _, file_extension = os.path.splitext(filepath)
+            # Should we alert the user if they are trying to add a duplicate file?
+            if filepath not in items_list:
+                if file_extension in allowed_extensions:
+                    self.listwidget.insertItem(
+                        self.listwidget.count(), filepath)
+                    items_list.append(filepath)
+                # If there was a file added with an invalid extension, keep track of that and warn the user
+                else:
+                    had_invalid_extension = True
+
+        if had_invalid_extension:
+            msg = Qw.QMessageBox()
+            msg.setIcon(Qw.QMessageBox.Information)
+            msg.setText("This program only supports JPEG, PNG, and PDF files.")
+            msg.setWindowTitle("Invalid file type")
+            msg.exec_()
 
     def remove_files(self):
         """
@@ -261,7 +313,6 @@ class NewDocOptions(Qw.QWidget):
         if self.preview_image_index >= len(preview_image_filenames):
             self.preview_image_index = len(preview_image_filenames) - 1
 
-        print(preview_image_filenames)
         self.preview_image_filenames = preview_image_filenames
 
         # TODO: Re-render current preview image
