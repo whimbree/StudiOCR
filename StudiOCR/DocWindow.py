@@ -4,8 +4,72 @@ from PySide2 import QtCore as Qc
 from PySide2 import QtWidgets as Qw
 from PySide2 import QtGui as Qg
 
-from StudiOCR.db import (db, OcrDocument, OcrPage, OcrBlock, create_tables)
+from db import (db, OcrDocument, OcrPage, OcrBlock, create_tables)
 
+# Custom PhotoViewer Code: https://stackoverflow.com/questions/35508711/how-to-enable-pan-and-zoom-in-a-qgraphicsview
+class PhotoViewer(Qw.QGraphicsView):
+
+    def __init__(self, parent):
+        super(PhotoViewer, self).__init__(parent)
+        self._zoom = 0
+        self._empty = True
+        self._scene = Qw.QGraphicsScene(self)
+        self._photo = Qw.QGraphicsPixmapItem()
+        self._scene.addItem(self._photo)
+        self.setScene(self._scene)
+        self.setTransformationAnchor(Qw.QGraphicsView.AnchorUnderMouse)
+        self.setResizeAnchor(Qw.QGraphicsView.AnchorUnderMouse)
+        self.setVerticalScrollBarPolicy(Qc.Qt.ScrollBarAlwaysOff)
+        self.setHorizontalScrollBarPolicy(Qc.Qt.ScrollBarAlwaysOff)
+        self.setBackgroundBrush(Qg.QBrush(Qg.QColor(30, 30, 30)))
+        self.setFrameShape(Qw.QFrame.NoFrame)
+
+    def hasPhoto(self):
+        return not self._empty
+
+    def fitInView(self, scale=True):
+        rect = Qc.QRectF(self._photo.pixmap().rect())
+        if not rect.isNull():
+            self.setSceneRect(rect)
+            if self.hasPhoto():
+                unity = self.transform().mapRect(Qc.QRectF(0, 0, 1, 1))
+                self.scale(1 / unity.width(), 1 / unity.height())
+                viewrect = self.viewport().rect()
+                scenerect = self.transform().mapRect(rect)
+                factor = min(viewrect.width() / scenerect.width(),
+                             viewrect.height() / scenerect.height())
+                #Bottom line was what's causing the bug
+                #self.scale(factor, factor)
+            self._zoom = 0
+
+    def setPhoto(self, pixmap=None):
+        self._zoom = 0
+        if pixmap and not pixmap.isNull():
+            self._empty = False
+            self.setDragMode(Qw.QGraphicsView.ScrollHandDrag)
+            self._photo.setPixmap(pixmap)
+        else:
+            self._empty = True
+            self.setDragMode(Qw.QGraphicsView.NoDrag)
+            self._photo.setPixmap(Qg.QPixmap())
+        self.fitInView()
+
+    def wheelEvent(self, event):
+        if self.hasPhoto():
+            modifiers = Qw.QApplication.keyboardModifiers()
+            if modifiers == Qc.Qt.ControlModifier:
+                if event.angleDelta().y() > 0:
+                    factor = 1.25
+                    self._zoom += 1
+                else:
+                    factor = 0.8
+                    self._zoom -= 1
+                if self._zoom > 0:
+                    self.scale(factor, factor)
+                elif self._zoom == 0:
+                    self.fitInView()
+                else:
+                    self._zoom = 0
 
 class DocWindow(Qw.QDialog):
     """
@@ -51,11 +115,16 @@ class DocWindow(Qw.QDialog):
         self._options.addWidget(self.filter_mode, alignment=Qc.Qt.AlignTop)
         self._layout.addLayout(self._options, alignment=Qc.Qt.AlignTop)
 
-        self._pixmap = Qg.QPixmap()
+        #self._pixmap = Qg.QPixmap()
         self._label_height_offset = 100
         self._label_width_offset = 40
 
-        self.label = Qw.QLabel()
+        #self.label = Qw.QLabel()
+
+        #Added viewer
+        self.viewer = PhotoViewer(self)
+        #Adding alignment causes a a default tiny viewer to appear for some reason
+        #self._layout.addWidget(self.viewer, alignment=Qc.Qt.AlignCenter)
         # if filter passed through from main window, set the search bar text and update window
         if self._filter:
             self.search_bar.setText(self._filter)
@@ -63,7 +132,7 @@ class DocWindow(Qw.QDialog):
         # display original image of first page
         else:
             self.update_image()
-        self._layout.addWidget(self.label, alignment=Qc.Qt.AlignCenter)
+        self._layout.addWidget(self.viewer)
 
         # create button group for prev and next page buttons
         self.next_page_button = Qw.QPushButton("Next Page")
@@ -79,18 +148,52 @@ class DocWindow(Qw.QDialog):
         self._button_group.addWidget(self.prev_page_button)
         self._button_group.addWidget(self.page_number_label)
         self._button_group.addWidget(self.next_page_button)
-
         self._layout.addLayout(self._button_group)
+
         self.setLayout(self._layout)
         db.close()
+
+    def update_image(self):
+        db.connect(reuse_if_open=True)
+        # if there is no search criteria, display original image of current page
+        if not self._filter or self._currPage not in self._filtered_page_indexes.keys():
+            img = Qg.QImage.fromData(self._pages[self._currPage].image)
+            self._pixmap = Qg.QPixmap.fromImage(img)
+            pixmap_scaled = self._pixmap.scaled(self.width() - self._label_width_offset, self.height() - self._label_height_offset,
+                                                Qc.Qt.KeepAspectRatio, Qc.Qt.SmoothTransformation)
+            self.viewer.setPhoto(pixmap_scaled)
+        else:
+            # for each block containing the search criteria, draw rectangles on the image
+            block_list = self._filtered_page_indexes[self._currPage]
+            img = Qg.QImage.fromData(self._pages[self._currPage].image)
+            self._pixmap = Qg.QPixmap.fromImage(img)
+            for block in block_list:
+                # set color of rectangle based on confidence level of OCR
+                if block.conf >= 80:
+                    color = Qc.Qt.green
+                elif (block.conf < 80 and block.conf >= 40):
+                    color = Qc.Qt.blue
+                else:
+                    color = Qc.Qt.red
+                painter = Qg.QPainter(self._pixmap)
+                painter.setPen(Qg.QPen(color, 3, Qc.Qt.SolidLine))
+                painter.drawRect(block.left, block.top,
+                                 block.width, block.height)
+                painter.end()
+
+            pixmap_scaled = self._pixmap.scaled(self.width() - self._label_width_offset, self.height() - self._label_height_offset,
+                                                Qc.Qt.KeepAspectRatio, Qc.Qt.SmoothTransformation)
+            self.viewer.setPhoto(pixmap_scaled)
+        db.close()
+        #self.viewer.setPhoto(Qg.QPixmap(img))
 
     def resizeEvent(self, e):
         pixmap_scaled = self._pixmap.scaled(
             self.width() - self._label_width_offset, self.height() - self._label_height_offset,
             Qc.Qt.KeepAspectRatio, Qc.Qt.SmoothTransformation)
-        self.label.setPixmap(pixmap_scaled)
-        self.label.setSizePolicy(
-            Qw.QSizePolicy.Preferred, Qw.QSizePolicy.Preferred)
+        self.viewer.setPhoto(pixmap_scaled)
+        #self.viewer.setSizePolicy(Qw.QSizePolicy.Preferred, Qw.QSizePolicy.Preferred)
+        #self.label.setSizePolicy(Qw.QSizePolicy.Preferred, Qw.QSizePolicy.Preferred)
         super().resizeEvent(e)
 
     def set_filter_mode(self):
@@ -204,39 +307,3 @@ class DocWindow(Qw.QDialog):
                 if len(matched_blocks) != 0:
                     self._filtered_page_indexes[page_index] = matched_blocks
             db.close()
-
-    def update_image(self):
-        """
-        Function that updates the rectangles on the image based on self._currPage and self._filtered_page_indexes
-        """
-        db.connect(reuse_if_open=True)
-        # if there is no search criteria, display original image of current page
-        if not self._filter or self._currPage not in self._filtered_page_indexes.keys():
-            img = Qg.QImage.fromData(self._pages[self._currPage].image)
-            self._pixmap = Qg.QPixmap.fromImage(img)
-            pixmap_scaled = self._pixmap.scaled(self.width() - self._label_width_offset, self.height() - self._label_height_offset,
-                                                Qc.Qt.KeepAspectRatio, Qc.Qt.SmoothTransformation)
-            self.label.setPixmap(pixmap_scaled)
-        else:
-            # for each block containing the search criteria, draw rectangles on the image
-            block_list = self._filtered_page_indexes[self._currPage]
-            img = Qg.QImage.fromData(self._pages[self._currPage].image)
-            self._pixmap = Qg.QPixmap.fromImage(img)
-            for block in block_list:
-                # set color of rectangle based on confidence level of OCR
-                if block.conf >= 80:
-                    color = Qc.Qt.green
-                elif (block.conf < 80 and block.conf >= 40):
-                    color = Qc.Qt.blue
-                else:
-                    color = Qc.Qt.red
-                painter = Qg.QPainter(self._pixmap)
-                painter.setPen(Qg.QPen(color, 3, Qc.Qt.SolidLine))
-                painter.drawRect(block.left, block.top,
-                                 block.width, block.height)
-                painter.end()
-
-            pixmap_scaled = self._pixmap.scaled(self.width() - self._label_width_offset, self.height() - self._label_height_offset,
-                                                Qc.Qt.KeepAspectRatio, Qc.Qt.SmoothTransformation)
-            self.label.setPixmap(pixmap_scaled)
-        db.close()
