@@ -194,7 +194,7 @@ class NewDocOptions(Qw.QWidget):
         layout.addWidget(self.options)
         layout.addWidget(self.submit, alignment=Qc.Qt.AlignBottom)
 
-        self._curr_prev_page = 0
+        self._curr_preview_page = 0
         # create button group for prev and next page buttons
         self.next_page_button = Qw.QPushButton("Next Page")
         self.next_page_button.setSizePolicy(
@@ -204,7 +204,7 @@ class NewDocOptions(Qw.QWidget):
         self.prev_page_button.setSizePolicy(
             Qw.QSizePolicy.MinimumExpanding, Qw.QSizePolicy.Fixed)
         self.prev_page_button.clicked.connect(self.prev_page)
-        self.page_number_label = Qw.QLabel(str(self._curr_prev_page + 1))
+        self.page_number_label = Qw.QLabel(str(self._curr_preview_page + 1))
         self._button_group = Qw.QHBoxLayout()
         self._button_group.addWidget(self.prev_page_button)
         self._button_group.addWidget(self.page_number_label)
@@ -339,12 +339,11 @@ class NewDocOptions(Qw.QWidget):
             else:
                 preview_image_filenames.append(filepath)
 
-        if self.preview_image_index >= len(preview_image_filenames):
-            self.preview_image_index = len(preview_image_filenames) - 1
-
         self.preview_image_filenames = preview_image_filenames
 
-        print(self.preview_image_filenames)
+        if self._curr_preview_page >= len(self.preview_image_filenames):
+            self._curr_preview_page = len(self.preview_image_filenames) - 1
+            self.page_number_label.setText(str(self._curr_preview_page + 1))
 
         # TODO: Re-render current preview image
         print("Calling preview image")
@@ -356,7 +355,7 @@ class NewDocOptions(Qw.QWidget):
         """
         print("previewing image")
         if len(self.preview_image_filenames) > 0:
-            temp_pixmap = Qg.QPixmap(self.preview_image_filenames[self._curr_prev_page])
+            temp_pixmap = Qg.QPixmap(self.preview_image_filenames[self._curr_preview_page])
             temp_pixmap = temp_pixmap.scaled(self.width() - self._label_width_offset,
                                                 self.height() - self._label_height_offset,
                                                 Qc.Qt.KeepAspectRatio, Qc.Qt.SmoothTransformation)
@@ -365,15 +364,15 @@ class NewDocOptions(Qw.QWidget):
             self._image_previewer.hide()
 
     def next_page(self):
-        if self._curr_prev_page + 1 < len(self.preview_image_filenames):
-            self._curr_prev_page += 1
-            self.page_number_label.setText(str(self._curr_prev_page + 1))
+        if self._curr_preview_page + 1 < len(self.preview_image_filenames):
+            self._curr_preview_page += 1
+            self.page_number_label.setText(str(self._curr_preview_page + 1))
             self.preview_image()
 
     def prev_page(self):
-        if self._curr_prev_page - 1 >= 0:
-            self._curr_prev_page -= 1
-            self.page_number_label.setText(str(self._curr_prev_page + 1))
+        if self._curr_preview_page - 1 >= 0:
+            self._curr_preview_page -= 1
+            self.page_number_label.setText(str(self._curr_preview_page + 1))
             self.preview_image()
 
     def process_document(self):
