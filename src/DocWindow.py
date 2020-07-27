@@ -122,10 +122,8 @@ class DocWindow(Qw.QDialog):
 
         #Added viewer
         self.viewer = PhotoViewer(self)
-        #Adding alignment causes a mini viewer for some reason
+        #Adding alignment causes a a default tiny viewer to appear for some reason
         #self._layout.addWidget(self.viewer, alignment=Qc.Qt.AlignCenter)
-        self._layout.addWidget(self.viewer)
-        self.update_image()
         # if filter passed through from main window, set the search bar text and update window
         if self._filter:
             self.search_bar.setText(self._filter)
@@ -133,6 +131,8 @@ class DocWindow(Qw.QDialog):
         # display original image of first page
         else:
             self.update_image()
+        self.viewer.scale(100.0, 100.0)
+        self._layout.addWidget(self.viewer)
 
         # create button group for prev and next page buttons
         self.next_page_button = Qw.QPushButton("Next Page")
@@ -159,8 +159,6 @@ class DocWindow(Qw.QDialog):
         if not self._filter or self._currPage not in self._filtered_page_indexes.keys():
             img = Qg.QImage.fromData(self._pages[self._currPage].image)
             self._pixmap = Qg.QPixmap.fromImage(img)
-            #pixmap_scaled = self._pixmap.scaled(self.width() - self._label_width_offset, self.height() - self._label_height_offset,
-            #                                    Qc.Qt.KeepAspectRatio, Qc.Qt.SmoothTransformation)
             pixmap_scaled = self._pixmap.scaled(self.width() - self._label_width_offset, self.height() - self._label_height_offset,
                                                 Qc.Qt.KeepAspectRatio, Qc.Qt.SmoothTransformation)
             self.viewer.setPhoto(pixmap_scaled)
