@@ -26,8 +26,11 @@ class PDFToImage(Qc.QThread):
     def pdf_to_img(filepath):
         temp_dir = tempfile.mkdtemp()
         # NOTE: Must remove temp dir with shutil.rmtree(temp_dir) once done with PDF images files
+        num_threads = get_threads()
+        # Use 4 threads at max to prevent I/O bottleneck
+        use_threads = num_threads if num_threads <= 4 else 4
         images_from_path = convert_from_path(
-            filepath, fmt='jpeg', paths_only=True, output_folder=temp_dir, thread_count=get_threads(), use_pdftocairo=True)
+            filepath, fmt='jpeg', paths_only=True, output_folder=temp_dir, thread_count=use_threads, use_pdftocairo=True)
         return (filepath, (images_from_path, temp_dir))
 
     def run(self):
