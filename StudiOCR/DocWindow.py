@@ -4,85 +4,22 @@ from PySide2 import QtCore as Qc
 from PySide2 import QtWidgets as Qw
 from PySide2 import QtGui as Qg
 
-from db import (db, OcrDocument, OcrPage, OcrBlock, create_tables)
+from StudiOCR.db import (db, OcrDocument, OcrPage, OcrBlock, create_tables)
+from StudiOCR.PhotoViewer import PhotoViewer
 
-# Custom PhotoViewer Code: https://stackoverflow.com/questions/35508711/how-to-enable-pan-and-zoom-in-a-qgraphicsview
-class PhotoViewer(Qw.QGraphicsView):
-
-    def __init__(self, parent):
-        super(PhotoViewer, self).__init__(parent)
-        self._zoom = 0
-        self._empty = True
-        self._scene = Qw.QGraphicsScene(self)
-        self._photo = Qw.QGraphicsPixmapItem()
-        self._scene.addItem(self._photo)
-        self.setScene(self._scene)
-        self.setTransformationAnchor(Qw.QGraphicsView.AnchorUnderMouse)
-        self.setResizeAnchor(Qw.QGraphicsView.AnchorUnderMouse)
-        self.setVerticalScrollBarPolicy(Qc.Qt.ScrollBarAlwaysOff)
-        self.setHorizontalScrollBarPolicy(Qc.Qt.ScrollBarAlwaysOff)
-        self.setBackgroundBrush(Qg.QBrush(Qg.QColor(30, 30, 30)))
-        self.setFrameShape(Qw.QFrame.NoFrame)
-
-    def hasPhoto(self):
-        return not self._empty
-
-    def fitInView(self, scale=True):
-        rect = Qc.QRectF(self._photo.pixmap().rect())
-        if not rect.isNull():
-            self.setSceneRect(rect)
-            if self.hasPhoto():
-                unity = self.transform().mapRect(Qc.QRectF(0, 0, 1, 1))
-                self.scale(1 / unity.width(), 1 / unity.height())
-                viewrect = self.viewport().rect()
-                scenerect = self.transform().mapRect(rect)
-                factor = min(viewrect.width() / scenerect.width(),
-                             viewrect.height() / scenerect.height())
-                #Bottom line was what's causing the bug
-                #self.scale(factor, factor)
-            self._zoom = 0
-
-    def setPhoto(self, pixmap=None):
-        self._zoom = 0
-        if pixmap and not pixmap.isNull():
-            self._empty = False
-            self.setDragMode(Qw.QGraphicsView.ScrollHandDrag)
-            self._photo.setPixmap(pixmap)
-        else:
-            self._empty = True
-            self.setDragMode(Qw.QGraphicsView.NoDrag)
-            self._photo.setPixmap(Qg.QPixmap())
-        self.fitInView()
-
-    def wheelEvent(self, event):
-        if self.hasPhoto():
-            modifiers = Qw.QApplication.keyboardModifiers()
-            if modifiers == Qc.Qt.ControlModifier:
-                if event.angleDelta().y() > 0:
-                    factor = 1.25
-                    self._zoom += 1
-                else:
-                    factor = 0.8
-                    self._zoom -= 1
-                if self._zoom > 0:
-                    self.scale(factor, factor)
-                elif self._zoom == 0:
-                    self.fitInView()
-                else:
-                    self._zoom = 0
 
 class DocWindow(Qw.QDialog):
     """
     Document Window for when the user is searching in a specific document
     """
 
-    def __init__(self, doc, parent=None, filter='', *args, **kwargs):
+    def __init__(self, doc, parent=None, filter=''):
         """
         Constructor method
         :param doc: OCRDocument
         :param filter: Filter from main window
         """
-        super().__init__(parent=parent, *args, **kwargs)
+        super().__init__(parent=parent)
         db.connect(reuse_if_open=True)
         self.setWindowTitle(doc.name)
 
@@ -93,7 +30,7 @@ class DocWindow(Qw.QDialog):
 
         self._doc = doc
         self._filter = filter
-        self._currPage = 0
+        self._curr_page = 0
         self._pages = self._doc.pages
         self._pages_len = len(self._pages)
         # Store key as page index, value as list of blocks
@@ -107,7 +44,8 @@ class DocWindow(Qw.QDialog):
         self.search_bar.setPlaceholderText("Search through notes...")
         self.search_bar.textChanged.connect(self.update_filter)
 
-        self.filter_mode = Qw.QPushButton("Show matching pages")
+        self.filter_mode = Qw.QPushButton(
+            "Show matching pages", default=False, autoDefault=False, parent=self)
         self.filter_mode.setCheckable(True)
         self.filter_mode.toggled.connect(self.set_filter_mode)
 
@@ -115,57 +53,58 @@ class DocWindow(Qw.QDialog):
         self._options.addWidget(self.filter_mode, alignment=Qc.Qt.AlignTop)
         self._layout.addLayout(self._options, alignment=Qc.Qt.AlignTop)
 
-        #self._pixmap = Qg.QPixmap()
-        self._label_height_offset = 100
-        self._label_width_offset = 40
-
-        #self.label = Qw.QLabel()
-
-        #Added viewer
-        self.viewer = PhotoViewer(self)
-        #Adding alignment causes a a default tiny viewer to appear for some reason
-        #self._layout.addWidget(self.viewer, alignment=Qc.Qt.AlignCenter)
-        # if filter passed through from main window, set the search bar text and update window
-        if self._filter:
-            self.search_bar.setText(self._filter)
-            self.update_filter()
-        # display original image of first page
-        else:
-            self.update_image()
-        self._layout.addWidget(self.viewer)
-
         # create button group for prev and next page buttons
-        self.next_page_button = Qw.QPushButton("Next Page")
+        self.next_page_button = Qw.QPushButton(
+            "Next Page", default=False, autoDefault=False, parent=self)
         self.next_page_button.setSizePolicy(
             Qw.QSizePolicy.MinimumExpanding, Qw.QSizePolicy.Fixed)
         self.next_page_button.clicked.connect(self.next_page)
-        self.prev_page_button = Qw.QPushButton("Previous Page")
+        self.prev_page_button = Qw.QPushButton(
+            "Previous Page", default=False, autoDefault=False, parent=self)
         self.prev_page_button.setSizePolicy(
             Qw.QSizePolicy.MinimumExpanding, Qw.QSizePolicy.Fixed)
         self.prev_page_button.clicked.connect(self.prev_page)
-        self.page_number_label = Qw.QLabel(str(self._currPage+1))
+
+        self.page_number_box = Qw.QLineEdit(parent=self)
+        self.page_number_box.setSizePolicy(
+            Qw.QSizePolicy.Minimum, Qw.QSizePolicy.Fixed)
+        self.page_number_box.setInputMask("0" * len(str(self._pages_len)))
+        self.page_number_box.setFixedWidth(
+            self.page_number_box.fontMetrics().boundingRect(str(self._pages_len)).width() + 20)
+        self.page_number_box.editingFinished.connect(
+            lambda: self.jump_to_page(int(self.page_number_box.text())-1))
+
+        # Added viewer
+        self.viewer = PhotoViewer(parent=self)
+        self._layout.addWidget(self.viewer)
+
         self._button_group = Qw.QHBoxLayout()
         self._button_group.addWidget(self.prev_page_button)
-        self._button_group.addWidget(self.page_number_label)
+        self._button_group.addWidget(self.page_number_box)
         self._button_group.addWidget(self.next_page_button)
         self._layout.addLayout(self._button_group)
 
         self.setLayout(self._layout)
+
+        # if filter passed through from main window, set the search bar text and update window
+        if self._filter:
+            self.search_bar.setText(self._filter)
+            self.update_filter()
+        self.jump_to_page(0)
+
         db.close()
 
     def update_image(self):
         db.connect(reuse_if_open=True)
         # if there is no search criteria, display original image of current page
-        if not self._filter or self._currPage not in self._filtered_page_indexes.keys():
-            img = Qg.QImage.fromData(self._pages[self._currPage].image)
+        if not self._filter or self._curr_page not in self._filtered_page_indexes.keys():
+            img = Qg.QImage.fromData(self._pages[self._curr_page].image)
             self._pixmap = Qg.QPixmap.fromImage(img)
-            pixmap_scaled = self._pixmap.scaled(self.width() - self._label_width_offset, self.height() - self._label_height_offset,
-                                                Qc.Qt.KeepAspectRatio, Qc.Qt.SmoothTransformation)
-            self.viewer.setPhoto(pixmap_scaled)
+            self.viewer.setPhoto(self._pixmap)
         else:
             # for each block containing the search criteria, draw rectangles on the image
-            block_list = self._filtered_page_indexes[self._currPage]
-            img = Qg.QImage.fromData(self._pages[self._currPage].image)
+            block_list = self._filtered_page_indexes[self._curr_page]
+            img = Qg.QImage.fromData(self._pages[self._curr_page].image)
             self._pixmap = Qg.QPixmap.fromImage(img)
             for block in block_list:
                 # set color of rectangle based on confidence level of OCR
@@ -181,20 +120,8 @@ class DocWindow(Qw.QDialog):
                                  block.width, block.height)
                 painter.end()
 
-            pixmap_scaled = self._pixmap.scaled(self.width() - self._label_width_offset, self.height() - self._label_height_offset,
-                                                Qc.Qt.KeepAspectRatio, Qc.Qt.SmoothTransformation)
-            self.viewer.setPhoto(pixmap_scaled)
+            self.viewer.setPhoto(self._pixmap)
         db.close()
-        #self.viewer.setPhoto(Qg.QPixmap(img))
-
-    def resizeEvent(self, e):
-        pixmap_scaled = self._pixmap.scaled(
-            self.width() - self._label_width_offset, self.height() - self._label_height_offset,
-            Qc.Qt.KeepAspectRatio, Qc.Qt.SmoothTransformation)
-        self.viewer.setPhoto(pixmap_scaled)
-        #self.viewer.setSizePolicy(Qw.QSizePolicy.Preferred, Qw.QSizePolicy.Preferred)
-        #self.label.setSizePolicy(Qw.QSizePolicy.Preferred, Qw.QSizePolicy.Preferred)
-        super().resizeEvent(e)
 
     def set_filter_mode(self):
         if self.filter_mode.isChecked():
@@ -208,33 +135,39 @@ class DocWindow(Qw.QDialog):
             self.next_page_button.setText("Next Page")
             self.prev_page_button.setText("Previous Page")
 
+    def jump_to_page(self, page_num: int):
+        self.page_number_box.blockSignals(True)
+        if page_num < self._pages_len and page_num >= 0:
+            self._curr_page = page_num
+            self.page_number_box.setText(str(self._curr_page+1))
+            self.update_image()
+        else:
+            self.page_number_box.setText(str(self._curr_page+1))
+        self.page_number_box.blockSignals(False)
+
     def next_page(self):
         """
         Increment the current page number if the next page button is pressed.
         If in filter mode, will go to next page containing the filter in the search bar
         """
-        # if we are in the mode to only display pages that match filter, then iterate through  self._filteredPageIndexes
+        # if we are in the mode to only display pages that match filter, then iterate through  self._filtered_page_indexes
         if self.filter_mode.isChecked():
             # if nothing matches the filter, then do nothing
             if len(self._filtered_page_indexes) == 0:
                 return
             # if not on last page, then find next page
             key_list = list(self._filtered_page_indexes.keys())
-            if self._currPage != key_list[len(key_list)-1]:
+            if self._curr_page != key_list[len(key_list)-1]:
                 # find the index of the tuple whose page we are currently on, and set it to that + 1
                 for index, page_number in enumerate(key_list):
-                    if page_number == self._currPage:
+                    if page_number == self._curr_page:
                         break
-                self._currPage = key_list[index + 1]
-                self.page_number_label.setText(str(self._currPage+1))
-                self.update_image()
+                self.jump_to_page(key_list[index + 1])
         # otherwise, perform as normal
         else:
             # if not at end, then go forward a page
-            if self._currPage + 1 != self._pages_len:
-                self._currPage += 1
-                self.page_number_label.setText(str(self._currPage+1))
-            self.update_image()
+            if self._curr_page + 1 < self._pages_len:
+                self.jump_to_page(self._curr_page + 1)
 
     def prev_page(self):
         """
@@ -248,21 +181,17 @@ class DocWindow(Qw.QDialog):
                 return
             # if not on last page, then find next page
             key_list = list(self._filtered_page_indexes.keys())
-            if self._currPage != key_list[0]:
+            if self._curr_page != key_list[0]:
                 # find the index of the tuple whose page we are currently on, and set it to that + 1
                 for index, page_number in enumerate(key_list):
-                    if page_number == self._currPage:
+                    if page_number == self._curr_page:
                         break
-                self._currPage = key_list[index - 1]
-                self.page_number_label.setText(str(self._currPage+1))
-                self.update_image()
+                self.jump_to_page(key_list[index - 1])
         # otherwise, perform as normal
         else:
             # go not at beginning, then go back a page
-            if self._currPage != 0:
-                self._currPage -= 1
-                self.page_number_label.setText(str(self._currPage+1))
-            self.update_image()
+            if self._curr_page > 0:
+                self.jump_to_page(self._curr_page - 1)
 
     def update_filter(self):
         """
@@ -280,10 +209,8 @@ class DocWindow(Qw.QDialog):
         Jump to the first matched page if there are matches and not currently on a matched page,
         otherwise do nothing
         """
-        if len(self._filtered_page_indexes) != 0 and self._currPage not in self._filtered_page_indexes.keys():
-            self._currPage = list(self._filtered_page_indexes.keys())[0]
-            self.page_number_label.setText(str(self._currPage+1))
-            self.update_image()
+        if len(self._filtered_page_indexes) != 0 and self._curr_page not in self._filtered_page_indexes.keys():
+            self.jump_to_page(list(self._filtered_page_indexes.keys())[0])
 
     def exec_filter(self):
         """
