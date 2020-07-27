@@ -38,7 +38,8 @@ class PhotoViewer(Qw.QGraphicsView):
                 scenerect = self.transform().mapRect(rect)
                 factor = min(viewrect.width() / scenerect.width(),
                              viewrect.height() / scenerect.height())
-                self.scale(factor, factor)
+                #Bottom line was what's causing the bug
+                #self.scale(factor, factor)
             self._zoom = 0
 
     def setPhoto(self, pixmap=None):
@@ -131,7 +132,6 @@ class DocWindow(Qw.QDialog):
         # display original image of first page
         else:
             self.update_image()
-        self.viewer.scale(100.0, 100.0)
         self._layout.addWidget(self.viewer)
 
         # create button group for prev and next page buttons
