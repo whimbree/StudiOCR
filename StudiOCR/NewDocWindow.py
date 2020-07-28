@@ -181,6 +181,8 @@ class NewDocOptions(Qw.QWidget):
         self.listwidget.file_dropped_signal.connect(self.insert_files)
         self.listwidget.drag_complete_signal.connect(self.update_file_previews)
 
+        self._image_previewer = Qw.QLabel()
+
         self.submit = Qw.QPushButton("Process Document")
         self.submit.clicked.connect(self.process_document)
 
@@ -191,7 +193,31 @@ class NewDocOptions(Qw.QWidget):
         layout.addWidget(self.listwidget)
         layout.addWidget(self.options)
         layout.addWidget(self.submit, alignment=Qc.Qt.AlignBottom)
-        self.setLayout(layout)
+
+        self._curr_preview_page = 0
+        # create button group for prev and next page buttons
+        self.next_page_button = Qw.QPushButton("Next Page")
+        self.next_page_button.setSizePolicy(
+            Qw.QSizePolicy.MinimumExpanding, Qw.QSizePolicy.Fixed)
+        self.next_page_button.clicked.connect(self.next_page)
+        self.prev_page_button = Qw.QPushButton("Previous Page")
+        self.prev_page_button.setSizePolicy(
+            Qw.QSizePolicy.MinimumExpanding, Qw.QSizePolicy.Fixed)
+        self.prev_page_button.clicked.connect(self.prev_page)
+        self.page_number_label = Qw.QLabel(str(self._curr_preview_page + 1))
+        self._button_group = Qw.QHBoxLayout()
+        self._button_group.addWidget(self.prev_page_button)
+        self._button_group.addWidget(self.page_number_label)
+        self._button_group.addWidget(self.next_page_button)
+
+        self.preview_layout = Qw.QVBoxLayout()
+        self.preview_layout.addWidget(self._image_previewer)
+        self.preview_layout.addLayout(self._button_group)
+
+        main_layout = Qw.QHBoxLayout()
+        main_layout.addLayout(layout)
+        main_layout.addLayout(self.preview_layout)
+        self.setLayout(main_layout)
 
         # For the preview image feature, keep two data types
         # Dictionary that stores PDF filepath -> ([image filepaths], temp_dir)
@@ -199,6 +225,9 @@ class NewDocOptions(Qw.QWidget):
         # A list of image filenames, in order, for going back and forth through the preview images
         self.preview_image_filenames = []
         self.preview_image_index = 0
+
+        self._label_height_offset = 100
+        self._label_width_offset = 40
 
     def cleanup_temp_files(self):
         for key in self.pdf_previews:
@@ -310,12 +339,41 @@ class NewDocOptions(Qw.QWidget):
             else:
                 preview_image_filenames.append(filepath)
 
-        if self.preview_image_index >= len(preview_image_filenames):
-            self.preview_image_index = len(preview_image_filenames) - 1
-
         self.preview_image_filenames = preview_image_filenames
 
+        if self._curr_preview_page >= len(self.preview_image_filenames):
+            self._curr_preview_page = len(self.preview_image_filenames) - 1
+            self.page_number_label.setText(str(self._curr_preview_page + 1))
+
         # TODO: Re-render current preview image
+        print("Calling preview image")
+        self.preview_image()
+
+    def preview_image(self):
+        """
+        Sets the image preview of the selected files
+        """
+        print("previewing image")
+        if len(self.preview_image_filenames) > 0:
+            temp_pixmap = Qg.QPixmap(self.preview_image_filenames[self._curr_preview_page])
+            temp_pixmap = temp_pixmap.scaled(self.width() - self._label_width_offset,
+                                                self.height() - self._label_height_offset,
+                                                Qc.Qt.KeepAspectRatio, Qc.Qt.SmoothTransformation)
+            self._image_previewer.setPixmap(temp_pixmap)
+        else:
+            self._image_previewer.hide()
+
+    def next_page(self):
+        if self._curr_preview_page + 1 < len(self.preview_image_filenames):
+            self._curr_preview_page += 1
+            self.page_number_label.setText(str(self._curr_preview_page + 1))
+            self.preview_image()
+
+    def prev_page(self):
+        if self._curr_preview_page - 1 >= 0:
+            self._curr_preview_page -= 1
+            self.page_number_label.setText(str(self._curr_preview_page + 1))
+            self.preview_image()
 
     def process_document(self):
         """
