@@ -78,7 +78,8 @@ class PhotoViewer(Qw.QGraphicsView):
                     self.fitInView()
                 else:
                     self._zoom = 0
-
+    #reference for context menu: https://stackoverflow.com/questions/60210071/how-to-right-click-to-save-picture-or-file
+    #reference for clipboard: https://stackoverflow.com/questions/17676373/python-matplotlib-pyqt-copy-image-to-clipboard
     def contextMenuEvent(self, event):
         cmenu = Qw.QMenu(self)
         copyClipboard = cmenu.addAction("Copy to Clipboard")
