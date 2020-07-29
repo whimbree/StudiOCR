@@ -44,12 +44,16 @@ class DocWindow(Qw.QDialog):
         self.search_bar.setPlaceholderText("Search through notes...")
         self.search_bar.textChanged.connect(self.update_filter)
 
+        self.case_sens_button = Qw.QRadioButton("Case Sensitive")
+        self.case_sens_button.toggled.connect(self.update_filter)
+
         self.filter_mode = Qw.QPushButton(
             "Show matching pages", default=False, autoDefault=False, parent=self)
         self.filter_mode.setCheckable(True)
         self.filter_mode.toggled.connect(self.set_filter_mode)
 
         self._options.addWidget(self.search_bar, alignment=Qc.Qt.AlignTop)
+        self._options.addWidget(self.case_sens_button)
         self._options.addWidget(self.filter_mode, alignment=Qc.Qt.AlignTop)
         self._layout.addLayout(self._options, alignment=Qc.Qt.AlignTop)
 
@@ -222,11 +226,17 @@ class DocWindow(Qw.QDialog):
         if self._filter:
             db.connect(reuse_if_open=True)
             # search each block in the current page to see if it contains the search criteria (filter)
-            words = self._filter.lower().split()
+            if self.case_sens_button.isChecked():
+                words = self._filter.split()
+            else:
+                words = self._filter.lower().split()
             for page_index, page in enumerate(self._pages):
                 matched_blocks = []
                 for block in page.blocks:
-                    text = block.text.lower()
+                    if self.case_sens_button.isChecked():
+                        text = block.text
+                    else:
+                        text = block.text.lower()
                     # if the filter value is contained in the block text, add block to list
                     for word in words:
                         if word in text:

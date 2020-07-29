@@ -353,7 +353,6 @@ class NewDocOptions(Qw.QWidget):
         """
         Sets the image preview of the selected files
         """
-        print("previewing image")
         if len(self.preview_image_filenames) > 0:
             temp_pixmap = Qg.QPixmap(self.preview_image_filenames[self._curr_preview_page])
             temp_pixmap = temp_pixmap.scaled(self.width() - self._label_width_offset,
