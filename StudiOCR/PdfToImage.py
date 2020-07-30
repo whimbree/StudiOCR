@@ -49,4 +49,3 @@ class PDFToImage(Qc.QThread):
         if len_to_process == self._processed_so_far:
             self.done_signal.emit(self.result)
             self.p.close()
-            self.p.join()

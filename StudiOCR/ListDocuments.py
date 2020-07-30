@@ -5,7 +5,7 @@ from PySide2 import QtGui as Qg
 from StudiOCR.util import get_absolute_path
 from StudiOCR.db import (db, OcrDocument, OcrPage, OcrBlock, create_tables)
 from StudiOCR.DocWindow import DocWindow
-from StudiOCR.NewDocWindow import NewDocWindow
+from StudiOCR.EditDocWindow import EditDocWindow
 
 
 class ListDocuments(Qw.QWidget):
@@ -163,13 +163,14 @@ class ListDocuments(Qw.QWidget):
                 db.close()
         else:
             if self.ocr_search.isChecked():
-                self.doc_window = DocWindow(doc, self, self._filter)
+                self.doc_window = DocWindow(
+                    doc, parent=self, filter=self._filter)
             else:
-                self.doc_window = DocWindow(doc, self)
+                self.doc_window = DocWindow(doc, parent=self)
             self.doc_window.show()
 
     def create_new_doc_window(self):
-        self.new_doc_window = NewDocWindow(self.new_doc_cb, self)
+        self.new_doc_window = EditDocWindow(self.new_doc_cb, parent=self)
         self.new_doc_window.show()
 
     def update_filter(self):

@@ -9,6 +9,7 @@ import img2pdf
 from StudiOCR.util import get_absolute_path
 from StudiOCR.db import (db, OcrDocument, OcrPage, OcrBlock, create_tables)
 from StudiOCR.PhotoViewer import PhotoViewer
+from StudiOCR.EditDocWindow import EditDocWindow
 
 
 class DocWindow(Qw.QDialog):
@@ -47,7 +48,8 @@ class DocWindow(Qw.QDialog):
         self.search_bar.setPlaceholderText("Search through notes...")
         self.search_bar.textChanged.connect(self.update_filter)
 
-        self.case_sens_button = Qw.QRadioButton("Case Sensitive")
+        self.case_sens_button = Qw.QRadioButton(
+            "Case Sensitive", parent=self)
         self.case_sens_button.toggled.connect(self.update_filter)
 
         self.filter_mode = Qw.QPushButton(
@@ -85,15 +87,23 @@ class DocWindow(Qw.QDialog):
         self.viewer = PhotoViewer(parent=self)
         self._layout.addWidget(self.viewer)
 
-        self.info_button = Qw.QPushButton()
+        self.info_button = Qw.QPushButton(
+            default=False, autoDefault=False, parent=self)
         self.info_button.setIcon(
             Qg.QIcon(get_absolute_path("icons/info_icon.png")))
         self.info_button.clicked.connect(self.display_info)
 
-        self.export_button = Qw.QPushButton("Export as PDF")
+        self.export_button = Qw.QPushButton(
+            "Export as PDF", default=False, autoDefault=False, parent=self)
         self.export_button.clicked.connect(self.export_pdf)
 
+        self.add_pages_button = Qw.QPushButton(
+            "Add pages", default=False, autoDefault=False, parent=self)
+        self.add_pages_button.clicked.connect(
+            lambda: self.add_pages(self._doc))
+
         self._button_group = Qw.QHBoxLayout()
+        self._button_group.addWidget(self.add_pages_button)
         self._button_group.addWidget(self.prev_page_button)
         self._button_group.addWidget(self.page_number_box)
         self._button_group.addWidget(self.next_page_button)
@@ -111,14 +121,36 @@ class DocWindow(Qw.QDialog):
 
         db.close()
 
-    def export_pdf(self):
-        file_dialog = Qw.QFileDialog()
-        file_dialog.setDefaultSuffix('pdf')
-        file_name = file_dialog.getSaveFileName(parent=self, filter="*.pdf")
+    def add_pages(self, doc):
+        # TODO: Refactor. This is disgusting
+        new_doc_cb = self.parentWidget().new_doc_cb
+        self.edit_doc_window = EditDocWindow(
+            new_doc_cb, doc=doc, parent=self)
+        self.edit_doc_window.show()
 
-        if file_name:
-            file = file_name[0]
-            print(file)
+    def export_pdf(self):
+
+        # Bug in qdarkstyle that makes dropdowns too large, so we need to add styles
+        dropdown_style = """QComboBox::item:checked {
+                height: 12px;
+                border: 1px solid #32414B;
+                margin-top: 0px;
+                margin-bottom: 0px;
+                padding: 4px;
+                padding-left: 0px;
+                }"""
+
+        file_dialog = Qw.QFileDialog()
+        file_dialog.setStyleSheet(dropdown_style)
+        file_dialog.setFileMode(Qw.QFileDialog.AnyFile)
+        file_dialog.setAcceptMode(Qw.QFileDialog.AcceptSave)
+        file_dialog.setNameFilters([
+            "PDF File (*.pdf)"])
+        file_dialog.selectNameFilter("PDF File (*.pdf)")
+        file_dialog.setDefaultSuffix("pdf")
+
+        if file_dialog.exec_():
+            file = file_dialog.selectedFiles()[0]
             imgs = []
             for page in self._pages:
                 imgs.append(page.image)

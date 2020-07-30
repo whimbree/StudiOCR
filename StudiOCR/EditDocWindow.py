@@ -11,18 +11,26 @@ from StudiOCR.PdfToImage import PDFToImage
 from StudiOCR.PhotoViewer import PhotoViewer
 
 
-class NewDocWindow(Qw.QDialog):
+class EditDocWindow(Qw.QDialog):
     """
-    New Document Window Class: the window that appears when the user tries to insert a new document
+    Edit Document Window Class: the window that appears when the user tries to insert a new document
+    This window also appears when the user wants to add pages to an existing document
     """
 
     close_event_signal = Qc.Signal(None)
 
-    def __init__(self, new_doc_cb, parent=None):
+    def __init__(self, new_doc_cb, doc=None, parent=None):
         super().__init__(parent=parent)
+        db.connect(reuse_if_open=True)
+
+        self._doc = doc
+
         self.new_doc_cb = new_doc_cb
 
-        self.setWindowTitle("Add New Document")
+        if self._doc is None:
+            self.setWindowTitle("Add New Document")
+        else:
+            self.setWindowTitle(f"Add pages to {self._doc.name}")
 
         self.desktop = Qw.QDesktopWidget()
         self.desktop_size = self.desktop.availableGeometry(
@@ -30,8 +38,8 @@ class NewDocWindow(Qw.QDialog):
         self.resize(self.desktop_size.width() * 0.2,
                     self.desktop_size.height() * 0.6)
 
-        self.settings = NewDocOptions(self.new_doc_cb, parent=self)
-        self.preview = NewDocPreview(parent=self)
+        self.settings = EditDocOptions(self.new_doc_cb, doc=doc, parent=self)
+        self.preview = EditDocPreview(doc=self._doc, parent=self)
         self.preview.hide()
 
         self.settings.close_on_submit_signal.connect(self.close_on_submit)
@@ -50,6 +58,8 @@ class NewDocWindow(Qw.QDialog):
         self.layout.addLayout(self.settings_layout)
 
         self.setLayout(self.layout)
+
+        db.close()
 
     @Qc.Slot(bool)
     def set_preview_visibility(self, visible: bool):
@@ -116,13 +126,17 @@ class DragList(Qw.QListWidget):
         self.drag_complete_signal.emit()
 
 
-class NewDocPreview(Qw.QWidget):
+class EditDocPreview(Qw.QWidget):
 
-    def __init__(self, parent=None):
+    def __init__(self, doc=None, parent=None):
         super().__init__(parent)
+        db.connect(reuse_if_open=True)
 
         self._image_previewer = Qw.QLabel()
         self.viewer = PhotoViewer(parent=self)
+
+        self._doc = doc
+        self._doc_size = 0 if self._doc is None else len(self._doc.pages)
 
         self._curr_preview_page = 0
         # create button group for prev and next page buttons
@@ -158,24 +172,39 @@ class NewDocPreview(Qw.QWidget):
         self._pages = []
         self._pages_len = 0
 
+        db.close()
+
+        if self._doc is not None:
+            self.update_preview_image_list([])
+
     @Qc.Slot(list)
     def update_preview_image_list(self, pages):
         self._pages = pages
         self._pages_len = len(self._pages)
         self.page_number_box.setInputMask(
-            "0" * len(str(self._pages_len)))
+            "0" * len(str(self._pages_len + self._doc_size)))
         self.page_number_box.setFixedWidth(
-            self.page_number_box.fontMetrics().boundingRect(str(self._pages_len)).width() + 20)
-        self.jump_to_page(min(self._curr_preview_page, self._pages_len - 1))
+            self.page_number_box.fontMetrics().boundingRect(str(self._pages_len + self._doc_size)).width() + 20)
+        # If adding pages to an existing document, instead jump to the beginning of the added pages
+        if self._doc is not None:
+            page_to_jump_to = self._curr_preview_page if self._curr_preview_page > self._doc_size or self._pages_len == 0 else self._doc_size
+            self.jump_to_page(min(page_to_jump_to,
+                                  self._pages_len + self._doc_size - 1))
+        else:
+            # otherwise keep the same page, only changing if total pages is less than current page
+            self.jump_to_page(min(self._curr_preview_page,
+                                  self._pages_len - 1))
 
     def jump_to_page(self, page_num: int):
         self.page_number_box.blockSignals(True)
-        if page_num < self._pages_len and page_num >= 0:
+        if page_num < self._pages_len + self._doc_size and page_num >= 0:
             self._curr_preview_page = page_num
-            self.page_number_box.setText(str(self._curr_preview_page+1))
+            self.page_number_box.setText(
+                str(self._curr_preview_page+1))
             self.update_image()
         else:
-            self.page_number_box.setText(str(self._curr_preview_page+1))
+            self.page_number_box.setText(
+                str(self._curr_preview_page+1))
         self.page_number_box.blockSignals(False)
 
     def update_image(self):
@@ -183,16 +212,22 @@ class NewDocPreview(Qw.QWidget):
         Sets the image preview of the selected file
         """
 
-        print("previewing image")
-        if self._pages_len > 0:
+        if self._curr_preview_page < self._doc_size:
+            db.connect(reuse_if_open=True)
+            img = Qg.QImage.fromData(
+                self._doc.pages[self._curr_preview_page].image)
+            db.close()
+            self._pixmap = Qg.QPixmap.fromImage(img)
+            self.viewer.setPhoto(self._pixmap)
+        elif self._pages_len > 0:
             self._pixmap = Qg.QPixmap(
-                self._pages[self._curr_preview_page])
+                self._pages[self._curr_preview_page - self._doc_size])
             self.viewer.setPhoto(self._pixmap)
         else:
             self.viewer.hide()
 
     def next_page(self):
-        if self._curr_preview_page + 1 < self._pages_len:
+        if self._curr_preview_page + 1 < self._pages_len + self._doc_size:
             self.jump_to_page(self._curr_preview_page + 1)
 
     def prev_page(self):
@@ -200,7 +235,7 @@ class NewDocPreview(Qw.QWidget):
             self.jump_to_page(self._curr_preview_page - 1)
 
 
-class NewDocOptions(Qw.QWidget):
+class EditDocOptions(Qw.QWidget):
     """
     Contains the methods for new document insertion: model selection and add/remove functionality
     """
@@ -209,17 +244,22 @@ class NewDocOptions(Qw.QWidget):
     has_new_file_previews = Qc.Signal(list)
     display_preview_toggle_signal = Qc.Signal(bool)
 
-    def __init__(self, new_doc_cb, parent=None):
+    def __init__(self, new_doc_cb, doc=None, parent=None):
         super().__init__(parent)
+        db.connect(reuse_if_open=True)
 
         self.new_doc_cb = new_doc_cb
+
+        self._doc = doc
+        self._doc_size = 0 if self._doc is None else len(self._doc.pages)
 
         self.parentWidget().close_event_signal.connect(self.cleanup_temp_files)
 
         self.display_preview_button = Qw.QPushButton(
             "Show document preview", default=False, autoDefault=False, parent=self)
         self.display_preview_button.setCheckable(True)
-        self.display_preview_button.setEnabled(False)
+        if self._doc is None:
+            self.display_preview_button.setEnabled(False)
         self.display_preview_button.toggled.connect(
             self.on_display_preview_button_toggled)
 
@@ -234,7 +274,11 @@ class NewDocOptions(Qw.QWidget):
         self.options = Qw.QGroupBox("Options")
 
         self.name_label = Qw.QLabel("Document Name:")
-        self.name_edit = Qw.QLineEdit()
+        self.name_edit = Qw.QLineEdit(parent=self)
+        if self._doc is not None:
+            self.name_edit.setText(self._doc.name)
+            # renaming is not permitted
+            self.name_edit.setReadOnly(True)
 
         # Bug in qdarkstyle that makes dropdowns too large, so we need to add styles
         self.dropdown_style = """QComboBox::item:checked {
@@ -321,13 +365,17 @@ class NewDocOptions(Qw.QWidget):
         # List of filenames, with PDFs already converted to images
         self._pages = []
 
+        db.close()
+
     @Qc.Slot(None)
     def on_display_preview_button_toggled(self):
         if self.display_preview_button.isChecked():
             self.display_preview_button.setText("Hide document preview")
+            self.setMaximumWidth(self.sensible_max_width())
             self.display_preview_toggle_signal.emit(True)
         else:
             self.display_preview_button.setText("Show document preview")
+            self.setMaximumWidth(self.sensible_max_width())
             self.display_preview_toggle_signal.emit(False)
 
     def sensible_max_width(self):
@@ -335,7 +383,7 @@ class NewDocOptions(Qw.QWidget):
 
         if preview_enabled:
             max_width = max((max(self.listwidget.width_hint(), self.name_edit.fontMetrics(
-            ).boundingRect(self.name_edit.text()).width() + 20)), 100)
+            ).boundingRect(self.name_edit.text()).width() + 20)), 200)
         else:
             # By default widgets have a max width of 16777215
             max_width = 16777215
@@ -442,8 +490,10 @@ class NewDocOptions(Qw.QWidget):
                 to_process.append(filepath)
 
         if len(to_process) > 0:
-            # disable the submit button until all the PDFs are done processing
-            self.submit.setDisabled(True)
+            # disable the buttons until all the PDFs are done processing
+            self.submit.setEnabled(False)
+            self.choose_file_button.setEnabled(False)
+            self.remove_file_button.setEnabled(False)
             self.pdf_image_process = PDFToImage(self)
             self.pdf_image_process.done_signal.connect(
                 self.complete_update_file_previews)
@@ -460,8 +510,10 @@ class NewDocOptions(Qw.QWidget):
     def complete_update_file_previews(self, result):
         self.pdf_previews.update(result)
 
-        # re-enable the submit button
-        self.submit.setDisabled(False)
+        # re-enable the buttons
+        self.submit.setEnabled(True)
+        self.choose_file_button.setEnabled(True)
+        self.remove_file_button.setEnabled(True)
 
         self._pages = []
         for index in range(self.listwidget.count()):
@@ -476,7 +528,7 @@ class NewDocOptions(Qw.QWidget):
         # also disable the button
         if len(self._pages) > 0:
             self.display_preview_button.setEnabled(True)
-        else:
+        elif self._doc is None:
             # Hide the preview and disable the button
             self.display_preview_button.setEnabled(False)
             self.display_preview_button.setChecked(False)
