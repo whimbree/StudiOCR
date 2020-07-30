@@ -4,6 +4,8 @@ from PySide2 import QtCore as Qc
 from PySide2 import QtWidgets as Qw
 from PySide2 import QtGui as Qg
 
+import img2pdf
+
 from StudiOCR.util import get_absolute_path
 from StudiOCR.db import (db, OcrDocument, OcrPage, OcrBlock, create_tables)
 from StudiOCR.PhotoViewer import PhotoViewer
@@ -88,10 +90,14 @@ class DocWindow(Qw.QDialog):
             Qg.QIcon(get_absolute_path("icons/info_icon.png")))
         self.info_button.clicked.connect(self.display_info)
 
+        self.export_button = Qw.QPushButton("Export as PDF")
+        self.export_button.clicked.connect(self.export_pdf)
+
         self._button_group = Qw.QHBoxLayout()
         self._button_group.addWidget(self.prev_page_button)
         self._button_group.addWidget(self.page_number_box)
         self._button_group.addWidget(self.next_page_button)
+        self._button_group.addWidget(self.export_button)
         self._button_group.addWidget(self.info_button)
         self._layout.addLayout(self._button_group)
 
@@ -104,6 +110,21 @@ class DocWindow(Qw.QDialog):
         self.jump_to_page(0)
 
         db.close()
+
+    def export_pdf(self):
+        file_dialog = Qw.QFileDialog()
+        file_dialog.setDefaultSuffix('pdf')
+        file_name = file_dialog.getSaveFileName(parent=self, filter="*.pdf")
+
+        if file_name:
+            file = file_name[0]
+            print(file)
+            imgs = []
+            for page in self._pages:
+                imgs.append(page.image)
+
+            with open(file, "wb") as f:
+                f.write(img2pdf.convert(imgs))
 
     def display_info(self):
         """
