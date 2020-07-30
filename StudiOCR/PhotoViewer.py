@@ -78,23 +78,24 @@ class PhotoViewer(Qw.QGraphicsView):
                     self.fitInView()
                 else:
                     self._zoom = 0
+
     #reference for context menu: https://stackoverflow.com/questions/60210071/how-to-right-click-to-save-picture-or-file
     #reference for clipboard: https://stackoverflow.com/questions/17676373/python-matplotlib-pyqt-copy-image-to-clipboard
+    #reference for save as: https://stackoverflow.com/questions/42763287/how-to-specify-the-path-when-saving-a-qpixmap
     def contextMenuEvent(self, event):
         cmenu = Qw.QMenu(self)
         copyClipboard = cmenu.addAction("Copy to Clipboard")
+        saveAs = cmenu.addAction("Save Image As")
         action = cmenu.exec_(self.mapToGlobal(event.pos()))
         clipboard = Qw.QApplication.clipboard()
         if action == copyClipboard:
             #clipboard.clear(mode=clipboard.Clipboard )
             #clipboard.setPixmap((self._photo).pixmap())
             clipboard.setPixmap(self.pixmap)
-        """
-        saveAct = cmenu.addAction("Save as")
-        action = cmenu.exec_(self.mapToGlobal(event.pos()))
-        if action == saveAct:
-            filename, _ = QFileDialog.getSaveFileName(self)
-            pixmap = self.le.pixmap()
-            if pixmap is not None and filename:
-                pixmap.save(filename)
-        """
+        if action == saveAs:
+            #file_dialog = Qw.QFileDialog(self)
+            #file_dialog.setFileMode(Qw.QFileDialog.DirectoryOnly)
+            #filedir = file_dialog.getExistingDirectory(self, "Select Directory")
+            fileName = Qw.QFileDialog.getSaveFileName(self, 'Save File', '', '*.jpg')
+            fileName2 = fileName[0]+".jpg"
+            (self.pixmap).save(fileName2, "JPG")
