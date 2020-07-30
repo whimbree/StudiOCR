@@ -8,6 +8,7 @@ from PySide2 import QtGui as Qg
 from StudiOCR.util import get_absolute_path
 from StudiOCR.db import (db, OcrDocument, OcrPage, OcrBlock, create_tables)
 from StudiOCR.PdfToImage import PDFToImage
+from StudiOCR.PhotoViewer import PhotoViewer
 
 
 class NewDocWindow(Qw.QDialog):
@@ -23,25 +24,49 @@ class NewDocWindow(Qw.QDialog):
 
         self.setWindowTitle("Add New Document")
 
-        desktop = Qw.QDesktopWidget()
-        desktop_size = desktop.availableGeometry(
-            desktop.primaryScreen()).size()
-        self.resize(desktop_size.width() * 0.2, desktop_size.height() * 0.6)
+        self.desktop = Qw.QDesktopWidget()
+        self.desktop_size = self.desktop.availableGeometry(
+            self.desktop.primaryScreen()).size()
+        self.resize(self.desktop_size.width() * 0.2,
+                    self.desktop_size.height() * 0.6)
 
         self.settings = NewDocOptions(self.new_doc_cb, parent=self)
+        self.preview = NewDocPreview(parent=self)
+        self.preview.hide()
+
         self.settings.close_on_submit_signal.connect(self.close_on_submit)
+        self.settings.has_new_file_previews.connect(
+            self.preview.update_preview_image_list)
+        self.settings.display_preview_toggle_signal.connect(
+            self.set_preview_visibility)
 
         self.submitted = False
 
-        layout = Qw.QHBoxLayout()
-        layout.addWidget(self.settings)
-        # TODO: Create some kind of preview for the selected image files
-        # ^Done with a "Files Chosen" section down below
-        self.setLayout(layout)
+        self.settings_layout = Qw.QVBoxLayout()
+        # self.settings_layout.addWidget(self.display_preview_button)
+        self.settings_layout.addWidget(self.settings)
 
-    # If we are closing on submit, do not send close_event_signal to child
-    # We need to preserve the temporary image files for processing
+        self.layout = Qw.QHBoxLayout()
+        self.layout.addLayout(self.settings_layout)
+
+        self.setLayout(self.layout)
+
+    @Qc.Slot(bool)
+    def set_preview_visibility(self, visible: bool):
+        if visible:
+            self.resize(self.width() + self.desktop_size.width() * 0.2,
+                        self.height())
+            self.layout.addWidget(self.preview)
+            self.preview.show()
+        else:
+            self.resize(self.width() - self.preview.width(),
+                        self.height())
+            self.layout.removeWidget(self.preview)
+            self.preview.hide()
+
     def close_on_submit(self):
+        # If we are closing on submit, do not send close_event_signal to child
+        # We need to preserve the temporary image files for processing
         self.submitted = True
         self.close()
 
@@ -68,6 +93,9 @@ class DragList(Qw.QListWidget):
         self.setSelectionMode(
             Qw.QAbstractItemView.ExtendedSelection)
 
+    def width_hint(self):
+        return self.sizeHintForColumn(0) + 24
+
     def dragEnterEvent(self, e):
         if e.mimeData().hasUrls():
             e.accept()
@@ -88,25 +116,119 @@ class DragList(Qw.QListWidget):
         self.drag_complete_signal.emit()
 
 
+class NewDocPreview(Qw.QWidget):
+
+    def __init__(self, parent=None):
+        super().__init__(parent)
+
+        self._image_previewer = Qw.QLabel()
+        self.viewer = PhotoViewer(parent=self)
+
+        self._curr_preview_page = 0
+        # create button group for prev and next page buttons
+        self.next_page_button = Qw.QPushButton(
+            "Next Page", default=False, autoDefault=False, parent=self)
+        self.next_page_button.setSizePolicy(
+            Qw.QSizePolicy.MinimumExpanding, Qw.QSizePolicy.Fixed)
+        self.next_page_button.clicked.connect(self.next_page)
+        self.prev_page_button = Qw.QPushButton(
+            "Previous Page", default=False, autoDefault=False, parent=self)
+        self.prev_page_button.setSizePolicy(
+            Qw.QSizePolicy.MinimumExpanding, Qw.QSizePolicy.Fixed)
+        self.prev_page_button.clicked.connect(self.prev_page)
+        self.page_number_label = Qw.QLabel(str(self._curr_preview_page + 1))
+
+        self.page_number_box = Qw.QLineEdit(parent=self)
+        self.page_number_box.setSizePolicy(
+            Qw.QSizePolicy.Minimum, Qw.QSizePolicy.Fixed)
+        self.page_number_box.editingFinished.connect(
+            lambda: self.jump_to_page(int(self.page_number_box.text())-1))
+
+        self._button_group = Qw.QHBoxLayout()
+        self._button_group.addWidget(self.prev_page_button)
+        self._button_group.addWidget(self.page_number_box)
+        self._button_group.addWidget(self.next_page_button)
+
+        self.preview_layout = Qw.QVBoxLayout()
+        self.preview_layout.addWidget(self.viewer)
+        self.preview_layout.addLayout(self._button_group)
+
+        self.setLayout(self.preview_layout)
+
+        self._pages = []
+        self._pages_len = 0
+
+    @Qc.Slot(list)
+    def update_preview_image_list(self, pages):
+        self._pages = pages
+        self._pages_len = len(self._pages)
+        self.page_number_box.setInputMask(
+            "0" * len(str(self._pages_len)))
+        self.page_number_box.setFixedWidth(
+            self.page_number_box.fontMetrics().boundingRect(str(self._pages_len)).width() + 20)
+        self.jump_to_page(min(self._curr_preview_page, self._pages_len - 1))
+
+    def jump_to_page(self, page_num: int):
+        self.page_number_box.blockSignals(True)
+        if page_num < self._pages_len and page_num >= 0:
+            self._curr_preview_page = page_num
+            self.page_number_box.setText(str(self._curr_preview_page+1))
+            self.update_image()
+        else:
+            self.page_number_box.setText(str(self._curr_preview_page+1))
+        self.page_number_box.blockSignals(False)
+
+    def update_image(self):
+        """
+        Sets the image preview of the selected file
+        """
+
+        print("previewing image")
+        if self._pages_len > 0:
+            self._pixmap = Qg.QPixmap(
+                self._pages[self._curr_preview_page])
+            self.viewer.setPhoto(self._pixmap)
+        else:
+            self.viewer.hide()
+
+    def next_page(self):
+        if self._curr_preview_page + 1 < self._pages_len:
+            self.jump_to_page(self._curr_preview_page + 1)
+
+    def prev_page(self):
+        if self._curr_preview_page - 1 >= 0:
+            self.jump_to_page(self._curr_preview_page - 1)
+
+
 class NewDocOptions(Qw.QWidget):
     """
-    Contains the methods for new document insertion: model selection and add/remove/display functionality
+    Contains the methods for new document insertion: model selection and add/remove functionality
     """
 
     close_on_submit_signal = Qc.Signal(None)
+    has_new_file_previews = Qc.Signal(list)
+    display_preview_toggle_signal = Qc.Signal(bool)
 
     def __init__(self, new_doc_cb, parent=None):
         super().__init__(parent)
 
         self.new_doc_cb = new_doc_cb
-        self.parent = parent
 
-        self.parent.close_event_signal.connect(self.cleanup_temp_files)
+        self.parentWidget().close_event_signal.connect(self.cleanup_temp_files)
 
-        self.choose_file_button = Qw.QPushButton("Add files")
+        self.display_preview_button = Qw.QPushButton(
+            "Show document preview", default=False, autoDefault=False, parent=self)
+        self.display_preview_button.setCheckable(True)
+        self.display_preview_button.setEnabled(False)
+        self.display_preview_button.toggled.connect(
+            self.on_display_preview_button_toggled)
+
+        self.choose_file_button = Qw.QPushButton(
+            "Add files", default=False, autoDefault=False, parent=self)
         self.choose_file_button.clicked.connect(self.choose_files)
 
-        self.remove_file_button = Qw.QPushButton("Remove files")
+        self.remove_file_button = Qw.QPushButton(
+            "Remove files", default=False, autoDefault=False, parent=self)
         self.remove_file_button.clicked.connect(self.remove_files)
 
         self.options = Qw.QGroupBox("Options")
@@ -149,18 +271,14 @@ class NewDocOptions(Qw.QWidget):
         # Default should be 3
         self.psm_num.setCurrentIndex(0)
 
-        # self.oem_label = Qw.QLabel("OEM Number")
-        # self.oem_num = Qw.QComboBox()
-        # self.oem_num.setStyleSheet(self.dropdown_style)
-        # for i in range(0, 4):
-        #     self.oem_num.addItem(str(i))
-        # # Default should be 3
-        # self.oem_num.setCurrentIndex(3)
-
-        self.info_button = Qw.QPushButton()
+        self.info_button = Qw.QPushButton(
+            default=False, autoDefault=False, parent=self)
         self.info_button.setIcon(
             Qg.QIcon(get_absolute_path("icons/info_icon.png")))
         self.info_button.clicked.connect(self.display_info)
+
+        self.status_bar = Qw.QStatusBar()
+        self.status_bar.showMessage("Ready")
 
         options_layout = Qw.QVBoxLayout()
         options_layout.addWidget(self.name_label)
@@ -171,8 +289,6 @@ class NewDocOptions(Qw.QWidget):
         options_layout.addWidget(self.processing_options)
         options_layout.addWidget(self.psm_label)
         options_layout.addWidget(self.psm_num)
-        # options_layout.addWidget(self.oem_label)
-        # options_layout.addWidget(self.oem_num)
         options_layout.addWidget(self.info_button, alignment=Qc.Qt.AlignRight)
         self.options.setLayout(options_layout)
 
@@ -181,53 +297,54 @@ class NewDocOptions(Qw.QWidget):
         self.listwidget.file_dropped_signal.connect(self.insert_files)
         self.listwidget.drag_complete_signal.connect(self.update_file_previews)
 
-        self._image_previewer = Qw.QLabel()
-
-        self.submit = Qw.QPushButton("Process Document")
+        self.submit = Qw.QPushButton(
+            "Process Document", default=False, autoDefault=False, parent=self)
         self.submit.clicked.connect(self.process_document)
 
         layout = Qw.QVBoxLayout()
+        layout.addWidget(self.display_preview_button)
         layout.addWidget(self.choose_file_button)
         layout.addWidget(self.remove_file_button)
         layout.addWidget(self.file_names_label)
         layout.addWidget(self.listwidget)
         layout.addWidget(self.options)
-        layout.addWidget(self.submit, alignment=Qc.Qt.AlignBottom)
-
-        self._curr_preview_page = 0
-        # create button group for prev and next page buttons
-        self.next_page_button = Qw.QPushButton("Next Page")
-        self.next_page_button.setSizePolicy(
-            Qw.QSizePolicy.MinimumExpanding, Qw.QSizePolicy.Fixed)
-        self.next_page_button.clicked.connect(self.next_page)
-        self.prev_page_button = Qw.QPushButton("Previous Page")
-        self.prev_page_button.setSizePolicy(
-            Qw.QSizePolicy.MinimumExpanding, Qw.QSizePolicy.Fixed)
-        self.prev_page_button.clicked.connect(self.prev_page)
-        self.page_number_label = Qw.QLabel(str(self._curr_preview_page + 1))
-        self._button_group = Qw.QHBoxLayout()
-        self._button_group.addWidget(self.prev_page_button)
-        self._button_group.addWidget(self.page_number_label)
-        self._button_group.addWidget(self.next_page_button)
-
-        self.preview_layout = Qw.QVBoxLayout()
-        self.preview_layout.addWidget(self._image_previewer)
-        self.preview_layout.addLayout(self._button_group)
+        layout.addWidget(self.submit)
+        layout.addWidget(self.status_bar)
 
         main_layout = Qw.QHBoxLayout()
         main_layout.addLayout(layout)
-        main_layout.addLayout(self.preview_layout)
         self.setLayout(main_layout)
 
         # For the preview image feature, keep two data types
         # Dictionary that stores PDF filepath -> ([image filepaths], temp_dir)
         self.pdf_previews = {}
-        # A list of image filenames, in order, for going back and forth through the preview images
-        self.preview_image_filenames = []
-        self.preview_image_index = 0
+        # List of filenames, with PDFs already converted to images
+        self._pages = []
 
-        self._label_height_offset = 100
-        self._label_width_offset = 40
+    @Qc.Slot(None)
+    def on_display_preview_button_toggled(self):
+        if self.display_preview_button.isChecked():
+            self.display_preview_button.setText("Hide document preview")
+            self.display_preview_toggle_signal.emit(True)
+        else:
+            self.display_preview_button.setText("Show document preview")
+            self.display_preview_toggle_signal.emit(False)
+
+    def sensible_max_width(self):
+        preview_enabled = self.display_preview_button.isChecked()
+
+        if preview_enabled:
+            max_width = max((max(self.listwidget.width_hint(), self.name_edit.fontMetrics(
+            ).boundingRect(self.name_edit.text()).width() + 20)), 100)
+        else:
+            # By default widgets have a max width of 16777215
+            max_width = 16777215
+
+        return max_width
+
+    def resizeEvent(self, e):
+        self.setMaximumWidth(self.sensible_max_width())
+        super().resizeEvent(e)
 
     def cleanup_temp_files(self):
         for key in self.pdf_previews:
@@ -242,8 +359,8 @@ class NewDocOptions(Qw.QWidget):
         file_dialog.setStyleSheet(self.dropdown_style)
         file_dialog.setFileMode(Qw.QFileDialog.ExistingFiles)
         file_dialog.setNameFilters([
-            "Images (*.png *.jpg *.jpeg)", "PDF Files (*.pdf)"])
-        file_dialog.selectNameFilter("Images (*.png *.jpg *.jpeg)")
+            "Image or PDF (*.png *.jpg *.jpeg *.pdf)"])
+        file_dialog.selectNameFilter("Image or PDF (*.png *.jpg *.jpeg *.pdf)")
 
         if file_dialog.exec_():
             filepaths = file_dialog.selectedFiles()
@@ -302,6 +419,14 @@ class NewDocOptions(Qw.QWidget):
 
         self.update_file_previews()
 
+    @Qc.Slot(int, int)
+    def update_pdf_process_status(self, processed: int, total: int):
+        if processed != total:
+            self.status_bar.showMessage(
+                f"Processing PDFs, {processed} out of {total}")
+        else:
+            self.status_bar.showMessage("Ready")
+
     def update_file_previews(self):
         """
         Update the file previews on file change
@@ -317,12 +442,17 @@ class NewDocOptions(Qw.QWidget):
                 to_process.append(filepath)
 
         if len(to_process) > 0:
+            # disable the submit button until all the PDFs are done processing
+            self.submit.setDisabled(True)
             self.pdf_image_process = PDFToImage(self)
             self.pdf_image_process.done_signal.connect(
                 self.complete_update_file_previews)
+            self.pdf_image_process.status_signal.connect(
+                self.update_pdf_process_status)
 
             self.pdf_image_process.pdf_filenames = to_process
             self.pdf_image_process.run()
+            self.update_pdf_process_status(0, len(to_process))
         else:
             self.complete_update_file_previews({})
 
@@ -330,49 +460,28 @@ class NewDocOptions(Qw.QWidget):
     def complete_update_file_previews(self, result):
         self.pdf_previews.update(result)
 
-        preview_image_filenames = []
+        # re-enable the submit button
+        self.submit.setDisabled(False)
+
+        self._pages = []
         for index in range(self.listwidget.count()):
             filepath = self.listwidget.item(index).text()
             _, file_extension = os.path.splitext(filepath)
             if file_extension == '.pdf' and filepath in self.pdf_previews:
-                preview_image_filenames.extend(self.pdf_previews[filepath][0])
+                self._pages.extend(self.pdf_previews[filepath][0])
             else:
-                preview_image_filenames.append(filepath)
+                self._pages.append(filepath)
 
-        self.preview_image_filenames = preview_image_filenames
-
-        if self._curr_preview_page >= len(self.preview_image_filenames):
-            self._curr_preview_page = len(self.preview_image_filenames) - 1
-            self.page_number_label.setText(str(self._curr_preview_page + 1))
-
-        # TODO: Re-render current preview image
-        print("Calling preview image")
-        self.preview_image()
-
-    def preview_image(self):
-        """
-        Sets the image preview of the selected files
-        """
-        if len(self.preview_image_filenames) > 0:
-            temp_pixmap = Qg.QPixmap(self.preview_image_filenames[self._curr_preview_page])
-            temp_pixmap = temp_pixmap.scaled(self.width() - self._label_width_offset,
-                                                self.height() - self._label_height_offset,
-                                                Qc.Qt.KeepAspectRatio, Qc.Qt.SmoothTransformation)
-            self._image_previewer.setPixmap(temp_pixmap)
+        # hide the preview if there is no files to display
+        # also disable the button
+        if len(self._pages) > 0:
+            self.display_preview_button.setEnabled(True)
         else:
-            self._image_previewer.hide()
+            # Hide the preview and disable the button
+            self.display_preview_button.setEnabled(False)
+            self.display_preview_button.setChecked(False)
 
-    def next_page(self):
-        if self._curr_preview_page + 1 < len(self.preview_image_filenames):
-            self._curr_preview_page += 1
-            self.page_number_label.setText(str(self._curr_preview_page + 1))
-            self.preview_image()
-
-    def prev_page(self):
-        if self._curr_preview_page - 1 >= 0:
-            self._curr_preview_page -= 1
-            self.page_number_label.setText(str(self._curr_preview_page + 1))
-            self.preview_image()
+        self.has_new_file_previews.emit(self._pages)
 
     def process_document(self):
         """
