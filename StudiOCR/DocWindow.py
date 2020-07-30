@@ -4,6 +4,7 @@ from PySide2 import QtCore as Qc
 from PySide2 import QtWidgets as Qw
 from PySide2 import QtGui as Qg
 
+from StudiOCR.util import get_absolute_path
 from StudiOCR.db import (db, OcrDocument, OcrPage, OcrBlock, create_tables)
 from StudiOCR.PhotoViewer import PhotoViewer
 
@@ -82,10 +83,16 @@ class DocWindow(Qw.QDialog):
         self.viewer = PhotoViewer(parent=self)
         self._layout.addWidget(self.viewer)
 
+        self.info_button = Qw.QPushButton()
+        self.info_button.setIcon(
+            Qg.QIcon(get_absolute_path("icons/info_icon.png")))
+        self.info_button.clicked.connect(self.display_info)
+
         self._button_group = Qw.QHBoxLayout()
         self._button_group.addWidget(self.prev_page_button)
         self._button_group.addWidget(self.page_number_box)
         self._button_group.addWidget(self.next_page_button)
+        self._button_group.addWidget(self.info_button)
         self._layout.addLayout(self._button_group)
 
         self.setLayout(self._layout)
@@ -97,6 +104,27 @@ class DocWindow(Qw.QDialog):
         self.jump_to_page(0)
 
         db.close()
+
+    def display_info(self):
+        """
+        When the information button is pressed, this window spawns with the information about the new
+        document options
+        """
+        text_file = Qw.QTextBrowser()
+        text = open(get_absolute_path("information_doc_window.txt")).read()
+        text_file.setText(text)
+        dialog = Qw.QDialog(parent=self)
+
+        desktop = Qw.QDesktopWidget()
+        desktop_size = desktop.availableGeometry(
+            desktop.primaryScreen()).size()
+        dialog.resize(desktop_size.width() * 0.2, desktop_size.height() * 0.4)
+
+        temp_layout = Qw.QHBoxLayout()
+        temp_layout.addWidget(text_file)
+        dialog.setWindowTitle("Doc Window Information")
+        dialog.setLayout(temp_layout)
+        dialog.show()
 
     def update_image(self):
         db.connect(reuse_if_open=True)
