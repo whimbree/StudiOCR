@@ -16,11 +16,13 @@ class PDFToImage(Qc.QThread):
     Emit a dictionary when done: PDF filepath -> ([image filepaths], temp_dir)
     """
     done_signal = Qc.Signal(object)
+    status_signal = Qc.Signal(int, int)  # done, total
 
     def __init__(self, parent=None):
         super().__init__(parent)
         self.pdf_filenames = []
-        self.output_data = {}
+        self.result = {}
+        self._processed_so_far = 0
 
     @staticmethod
     def pdf_to_img(filepath):
@@ -35,10 +37,16 @@ class PDFToImage(Qc.QThread):
 
     def run(self):
         self.p = Pool()
-        self.p.map_async(PDFToImage.pdf_to_img,
-                         self.pdf_filenames, callback=self.emit_result)
+        for filename in self.pdf_filenames:
+            self.p.apply_async(PDFToImage.pdf_to_img,
+                               args=[filename], callback=self.emit_result)
 
-    def emit_result(self, result):
-        self.done_signal.emit(dict(result))
-        self.p.close()
-        self.p.join()
+    def emit_result(self, single_result):
+        self.result[single_result[0]] = single_result[1]
+        self._processed_so_far += 1
+        len_to_process = len(self.pdf_filenames)
+        self.status_signal.emit(self._processed_so_far, len_to_process)
+        if len_to_process == self._processed_so_far:
+            self.done_signal.emit(self.result)
+            self.p.close()
+            self.p.join()
