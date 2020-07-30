@@ -1,0 +1,4 @@
+- Use the search bar to search for certain words
+- Toggle case sensitive for a case sensitive search
+- Toggling on "Show matching pages" will allow you to cycle through all pages containing the search criteria
+- The page number displayed at the bottom can be manually entered

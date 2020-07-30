@@ -4,6 +4,9 @@ from PySide2 import QtCore as Qc
 from PySide2 import QtWidgets as Qw
 from PySide2 import QtGui as Qg
 
+import img2pdf
+
+from StudiOCR.util import get_absolute_path
 from StudiOCR.db import (db, OcrDocument, OcrPage, OcrBlock, create_tables)
 from StudiOCR.PhotoViewer import PhotoViewer
 
@@ -44,12 +47,16 @@ class DocWindow(Qw.QDialog):
         self.search_bar.setPlaceholderText("Search through notes...")
         self.search_bar.textChanged.connect(self.update_filter)
 
+        self.case_sens_button = Qw.QRadioButton("Case Sensitive")
+        self.case_sens_button.toggled.connect(self.update_filter)
+
         self.filter_mode = Qw.QPushButton(
             "Show matching pages", default=False, autoDefault=False, parent=self)
         self.filter_mode.setCheckable(True)
         self.filter_mode.toggled.connect(self.set_filter_mode)
 
         self._options.addWidget(self.search_bar, alignment=Qc.Qt.AlignTop)
+        self._options.addWidget(self.case_sens_button)
         self._options.addWidget(self.filter_mode, alignment=Qc.Qt.AlignTop)
         self._layout.addLayout(self._options, alignment=Qc.Qt.AlignTop)
 
@@ -78,10 +85,20 @@ class DocWindow(Qw.QDialog):
         self.viewer = PhotoViewer(parent=self)
         self._layout.addWidget(self.viewer)
 
+        self.info_button = Qw.QPushButton()
+        self.info_button.setIcon(
+            Qg.QIcon(get_absolute_path("icons/info_icon.png")))
+        self.info_button.clicked.connect(self.display_info)
+
+        self.export_button = Qw.QPushButton("Export as PDF")
+        self.export_button.clicked.connect(self.export_pdf)
+
         self._button_group = Qw.QHBoxLayout()
         self._button_group.addWidget(self.prev_page_button)
         self._button_group.addWidget(self.page_number_box)
         self._button_group.addWidget(self.next_page_button)
+        self._button_group.addWidget(self.export_button)
+        self._button_group.addWidget(self.info_button)
         self._layout.addLayout(self._button_group)
 
         self.setLayout(self._layout)
@@ -93,6 +110,42 @@ class DocWindow(Qw.QDialog):
         self.jump_to_page(0)
 
         db.close()
+
+    def export_pdf(self):
+        file_dialog = Qw.QFileDialog()
+        file_dialog.setDefaultSuffix('pdf')
+        file_name = file_dialog.getSaveFileName(parent=self, filter="*.pdf")
+
+        if file_name:
+            file = file_name[0]
+            print(file)
+            imgs = []
+            for page in self._pages:
+                imgs.append(page.image)
+
+            with open(file, "wb") as f:
+                f.write(img2pdf.convert(imgs))
+
+    def display_info(self):
+        """
+        When the information button is pressed, this window spawns with the information about the new
+        document options
+        """
+        text_file = Qw.QTextBrowser()
+        text = open(get_absolute_path("information_doc_window.txt")).read()
+        text_file.setText(text)
+        dialog = Qw.QDialog(parent=self)
+
+        desktop = Qw.QDesktopWidget()
+        desktop_size = desktop.availableGeometry(
+            desktop.primaryScreen()).size()
+        dialog.resize(desktop_size.width() * 0.2, desktop_size.height() * 0.4)
+
+        temp_layout = Qw.QHBoxLayout()
+        temp_layout.addWidget(text_file)
+        dialog.setWindowTitle("Doc Window Information")
+        dialog.setLayout(temp_layout)
+        dialog.show()
 
     def update_image(self):
         db.connect(reuse_if_open=True)
@@ -222,11 +275,17 @@ class DocWindow(Qw.QDialog):
         if self._filter:
             db.connect(reuse_if_open=True)
             # search each block in the current page to see if it contains the search criteria (filter)
-            words = self._filter.lower().split()
+            if self.case_sens_button.isChecked():
+                words = self._filter.split()
+            else:
+                words = self._filter.lower().split()
             for page_index, page in enumerate(self._pages):
                 matched_blocks = []
                 for block in page.blocks:
-                    text = block.text.lower()
+                    if self.case_sens_button.isChecked():
+                        text = block.text
+                    else:
+                        text = block.text.lower()
                     # if the filter value is contained in the block text, add block to list
                     for word in words:
                         if word in text:
