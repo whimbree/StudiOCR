@@ -23,6 +23,14 @@ class PhotoViewer(Qw.QGraphicsView):
         self.setFrameShape(Qw.QFrame.NoFrame)
 
         self.pixmap = Qg.QPixmap()
+        self.dropdown_style = """QComboBox::item:checked {
+                height: 12px;
+                border: 1px solid #32414B;
+                margin-top: 0px;
+                margin-bottom: 0px;
+                padding: 4px;
+                padding-left: 0px;
+                }"""
 
     def hasPhoto(self):
         return not self._empty
@@ -93,9 +101,11 @@ class PhotoViewer(Qw.QGraphicsView):
             #clipboard.setPixmap((self._photo).pixmap())
             clipboard.setPixmap(self.pixmap)
         if action == saveAs:
-            #file_dialog = Qw.QFileDialog(self)
+            file_dialog = Qw.QFileDialog(self)
+            #file_dialog.setStyleSheet(self.dropdown_style)
             #file_dialog.setFileMode(Qw.QFileDialog.DirectoryOnly)
             #filedir = file_dialog.getExistingDirectory(self, "Select Directory")
-            fileName = Qw.QFileDialog.getSaveFileName(self, 'Save File', '', '*.jpg')
+            file_dialog.setStyleSheet(self.dropdown_style)
+            fileName = file_dialog.getSaveFileName(self, 'Save File', '', '*.jpg')
             fileName2 = fileName[0]+".jpg"
             (self.pixmap).save(fileName2, "JPG")
