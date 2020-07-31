@@ -292,6 +292,17 @@ class EditDocOptions(Qw.QWidget):
                 padding-left: 0px;
                 }"""
 
+        self.preset_label = Qw.QLabel("Preset:")
+        self.preset_options = Qw.QComboBox()
+        self.preset_options.setStyleSheet(self.dropdown_style)
+        self.preset_options.addItem("Screenshot")
+        self.preset_options.addItem("Printed Text (PDF)")
+        self.preset_options.addItem("Written Paragraph")
+        self.preset_options.addItem("Written Page")
+        self.preset_options.addItem("Custom")
+        self.preset_options.setCurrentIndex(4)
+        self.preset_options.currentIndexChanged.connect(self.preset_changed)
+
         self.best_vs_fast = Qw.QLabel("Best Model or Fast Model:")
         self.best_vs_fast_options = Qw.QComboBox()
 
@@ -306,8 +317,9 @@ class EditDocOptions(Qw.QWidget):
         self.processing_options.setStyleSheet(self.dropdown_style)
         self.processing_options.addItem("No")
         self.processing_options.addItem("Yes")
-        # Default should be no
+        #default should be no
         self.processing_options.setCurrentIndex(0)
+        self.processing_options.currentIndexChanged.connect(self.custom_preset)
 
         self.psm_label = Qw.QLabel("PSM Number")
         self.psm_num = Qw.QComboBox()
@@ -316,6 +328,7 @@ class EditDocOptions(Qw.QWidget):
             self.psm_num.addItem(str(i))
         # Default should be 3
         self.psm_num.setCurrentIndex(0)
+        self.psm_num.currentIndexChanged.connect(self.custom_preset)
 
         self.info_button = Qw.QPushButton(
             default=False, autoDefault=False, parent=self)
@@ -329,6 +342,8 @@ class EditDocOptions(Qw.QWidget):
         options_layout = Qw.QVBoxLayout()
         options_layout.addWidget(self.name_label)
         options_layout.addWidget(self.name_edit)
+        options_layout.addWidget(self.preset_label)
+        options_layout.addWidget(self.preset_options)
         options_layout.addWidget(self.best_vs_fast)
         options_layout.addWidget(self.best_vs_fast_options)
         options_layout.addWidget(self.processing_label)
@@ -368,6 +383,32 @@ class EditDocOptions(Qw.QWidget):
         self._pages = []
 
         db.close()
+
+    def custom_preset(self):
+        #set preset to custom
+        self.preset_options.setCurrentIndex(4)
+
+    def preset_changed(self, i):
+        self.processing_options.blockSignals(True)
+        self.psm_num.blockSignals(True)
+        #screenshot
+        if self.preset_options.currentIndex() == 0:
+            self.processing_options.setCurrentIndex(0)
+            self.psm_num.setCurrentIndex(0)
+        #printed text
+        elif self.preset_options.currentIndex() == 1:
+            self.processing_options.setCurrentIndex(0)
+            self.psm_num.setCurrentIndex(0)
+        #written paragraph
+        elif self.preset_options.currentIndex() == 2:
+            self.processing_options.setCurrentIndex(1)
+            self.psm_num.setCurrentIndex(3)
+        #written page
+        elif self.preset_options.currentIndex() == 3:
+            self.processing_options.setCurrentIndex(1)
+            self.psm_num.setCurrentIndex(0)
+        self.processing_options.blockSignals(False)
+        self.psm_num.blockSignals(False)
 
     @Qc.Slot(None)
     def on_display_preview_button_toggled(self):
