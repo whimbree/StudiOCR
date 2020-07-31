@@ -8,11 +8,11 @@ StudiOCR is an application to index notes and make them searchable by using OCR.
 # Installation Instructions
 
 ## Prerequisites
-- You must have Qt and Tesseract OCR installed.
+- You must have Qt, Tesseract OCR, and Poppler installed.
 - Ubuntu or Debian
-    - `sudo apt install qt5-default tesseract-ocr`
+    - `sudo apt install qt5-default tesseract-ocr poppler-utils`
 - Arch or Manjaro
-    - `sudo pacman -S qt5-base tesseract`
+    - `sudo pacman -S qt5-base tesseract poppler`
 
 ## Install through PyPi
 - Optionally, create a fresh venv for installing the package in
