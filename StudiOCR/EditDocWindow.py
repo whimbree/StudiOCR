@@ -315,6 +315,8 @@ class EditDocOptions(Qw.QWidget):
         self.processing_options.setStyleSheet(self.dropdown_style)
         self.processing_options.addItem("No")
         self.processing_options.addItem("Yes")
+        #default should be no
+        self.processing_options.setCurrentIndex(0)
         self.processing_options.currentIndexChanged.connect(self.custom_preset)
 
         self.psm_label = Qw.QLabel("PSM Number")
