@@ -197,14 +197,16 @@ class EditDocPreview(Qw.QWidget):
 
     def jump_to_page(self, page_num: int):
         self.page_number_box.blockSignals(True)
-        if page_num < self._pages_len + self._doc_size and page_num >= 0:
+        if page_num < self._pages_len+self._doc_size and page_num >= 0:
             self._curr_preview_page = page_num
-            self.page_number_box.setText(
-                str(self._curr_preview_page+1))
+            self.page_number_box.setText(str(self._curr_preview_page+1))
+            self.update_image()
+        elif page_num >= self._pages_len+self._doc_size:
+            self._curr_preview_page = self._pages_len+self._doc_size-1
+            self.page_number_box.setText(str(self._curr_preview_page+1))
             self.update_image()
         else:
-            self.page_number_box.setText(
-                str(self._curr_preview_page+1))
+            self.page_number_box.setText(str(self._curr_preview_page+1))
         self.page_number_box.blockSignals(False)
 
     def update_image(self):
@@ -542,10 +544,7 @@ class EditDocOptions(Qw.QWidget):
         db.connect(reuse_if_open=True)
         name = self.name_edit.text()
         query = OcrDocument.select().where(OcrDocument.name == name)
-        file_names = []
-        for index in range(self.listwidget.count()):
-            file_names.append(self.listwidget.item(index).text())
-        if query.exists() or len(name) == 0:
+        if (query.exists() or len(name) == 0) and self._doc is None:
             msg = Qw.QMessageBox()
             msg.setIcon(Qw.QMessageBox.Warning)
             msg.setText("Document names must be unique and non empty.")
@@ -557,7 +556,7 @@ class EditDocOptions(Qw.QWidget):
                     'There is already a document with that name.')
             msg.setWindowTitle("Error")
             msg.exec_()
-        elif len(file_names) == 0:
+        elif len(self._pages) == 0:
             msg = Qw.QMessageBox()
             msg.setIcon(Qw.QMessageBox.Warning)
             msg.setText("No files were selected as part of the document.")
@@ -572,7 +571,7 @@ class EditDocOptions(Qw.QWidget):
             psm_number = self.psm_num.currentIndex()+3
             best = bool(self.best_vs_fast_options.currentIndex())
             preprocessing = bool(self.processing_options.currentIndex())
-            self.new_doc_cb(name, file_names, oem_number,
+            self.new_doc_cb(name, self.pdf_previews, self._pages, oem_number,
                             psm_number, best, preprocessing)
             self.close_on_submit_signal.emit()
         db.close()

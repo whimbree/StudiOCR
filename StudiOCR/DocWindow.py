@@ -81,7 +81,7 @@ class DocWindow(Qw.QDialog):
         self.page_number_box.setFixedWidth(
             self.page_number_box.fontMetrics().boundingRect(str(self._pages_len)).width() + 20)
         self.page_number_box.editingFinished.connect(
-            lambda: self.jump_to_page(int(self.page_number_box.text())-1))
+            self.on_page_number_box_change)
 
         # Added viewer
         self.viewer = PhotoViewer(parent=self)
@@ -220,21 +220,41 @@ class DocWindow(Qw.QDialog):
             self.next_page_button.setText("Next Page")
             self.prev_page_button.setText("Previous Page")
 
+    def refresh_pages(self):
+        """
+        This function is a horrible hack to get the new pagecount of a document
+        It is used in case files are added to an existing document and the user wants to see
+        those immediatelely in the doc preview
+        """
+        db.connect(reuse_if_open=True)
+        self._pages = self._doc.pages
+        self._pages_len = len(self._pages)
+        db.close()
+
     def jump_to_page(self, page_num: int):
         self.page_number_box.blockSignals(True)
         if page_num < self._pages_len and page_num >= 0:
             self._curr_page = page_num
             self.page_number_box.setText(str(self._curr_page+1))
             self.update_image()
+        elif page_num >= self._pages_len:
+            self._curr_page = self._pages_len-1
+            self.page_number_box.setText(str(self._curr_page+1))
+            self.update_image()
         else:
             self.page_number_box.setText(str(self._curr_page+1))
         self.page_number_box.blockSignals(False)
+
+    def on_page_number_box_change(self):
+        self.refresh_pages()
+        self.jump_to_page(int(self.page_number_box.text())-1)
 
     def next_page(self):
         """
         Increment the current page number if the next page button is pressed.
         If in filter mode, will go to next page containing the filter in the search bar
         """
+        self.refresh_pages()
         # if we are in the mode to only display pages that match filter, then iterate through  self._filtered_page_indexes
         if self.filter_mode.isChecked():
             # if nothing matches the filter, then do nothing
@@ -259,6 +279,7 @@ class DocWindow(Qw.QDialog):
         Decrement the current page number if the next page button is pressed.
         If in filter mode, will go to previous page containing filter in the search bar
         """
+        self.refresh_pages()
         # if we are in the mode to only display pages that match filter, then iterate through  self._filteredPageIndexes
         if self.filter_mode.isChecked():
             # if nothing matches the filter, then do nothing

@@ -34,7 +34,7 @@ class ListDocuments(Qw.QWidget):
         self.scroll_area.setWidgetResizable(True)
         self.ui_box = Qw.QHBoxLayout()
 
-        self._docButtons = []
+        self._doc_buttons = []
 
         self.search_bar = Qw.QLineEdit()
         self.search_bar.setPlaceholderText("Search for document name...")
@@ -64,7 +64,7 @@ class ListDocuments(Qw.QWidget):
             doc_button.pressed.connect(
                 lambda doc=doc: self.create_doc_window(doc))
             doc_button.setVisible(True)
-            self._docButtons.append(doc_button)
+            self._doc_buttons.append(doc_button)
 
         new_doc_button_icon = open(get_absolute_path(
             "icons/plus_icon.png"), "rb").read()
@@ -73,7 +73,7 @@ class ListDocuments(Qw.QWidget):
         self.new_doc_button.pressed.connect(
             lambda: self.create_new_doc_window())
 
-        self._active_docs = self._docButtons
+        self._active_docs = self._doc_buttons
 
         self.render_doc_grid()
 
@@ -123,12 +123,20 @@ class ListDocuments(Qw.QWidget):
         :param doc_id: ID of the new document in the database
         """
         db.connect(reuse_if_open=True)
-        doc = OcrDocument.get(OcrDocument.id == doc_id)
-        # assuming that each doc will surely have at least one page
-        doc_button = SingleDocumentButton(doc.name, doc.pages[0].image, doc)
-        doc_button.pressed.connect(
-            lambda doc=doc: self.create_doc_window(doc))
-        self._docButtons.append(doc_button)
+        add_button = True
+        # only append the document if the document isn't in the grid yet
+        for button in self._doc_buttons:
+            if button.doc.id == doc_id:
+                add_button = False
+
+        if add_button:
+            doc = OcrDocument.get(OcrDocument.id == doc_id)
+            # assuming that each doc will surely have at least one page
+            doc_button = SingleDocumentButton(
+                doc.name, doc.pages[0].image, doc)
+            doc_button.pressed.connect(
+                lambda doc=doc: self.create_doc_window(doc))
+            self._doc_buttons.append(doc_button)
         self.update_filter()
         db.close()
 
@@ -151,12 +159,12 @@ class ListDocuments(Qw.QWidget):
             confirm.setDefaultButton(Qw.QMessageBox.No)
             if confirm.exec_() == Qw.QMessageBox.Yes:
                 button_to_remove = None
-                for button in self._docButtons:
+                for button in self._doc_buttons:
                     if button.doc == doc:
                         button_to_remove = button
                         break
                 self.doc_grid.removeWidget(button_to_remove)
-                self._docButtons.remove(button_to_remove)
+                self._doc_buttons.remove(button_to_remove)
                 self.update_filter()
                 db.connect(reuse_if_open=True)
                 doc.delete_document()
@@ -182,12 +190,12 @@ class ListDocuments(Qw.QWidget):
 
         self._active_docs = []
         if self.doc_search.isChecked():
-            for button in self._docButtons:
+            for button in self._doc_buttons:
                 if(self._filter.lower() in button.name.lower()):
                     self._active_docs.append(button)
         elif self.ocr_search.isChecked():
             words = self._filter.lower().split()
-            for button in self._docButtons:
+            for button in self._doc_buttons:
                 text_found = False
                 if len(words) == 0:
                     self._active_docs.append(button)

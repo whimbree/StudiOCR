@@ -1,5 +1,6 @@
 from collections import OrderedDict
-from multiprocessing import Process, Queue, Pipe
+from multiprocessing import Process, Queue, Pipe, Pool
+import shutil
 
 from PySide2 import QtCore as Qc
 from PySide2 import QtWidgets as Qw
@@ -47,11 +48,14 @@ class OcrWorker(Process):
     Process to parse images using OCR and populate database
     """
 
-    def __init__(self, to_output: Pipe, input_data: Queue, daemon=True):
+    def __init__(self, to_output: Pipe, input_data: Queue, daemon=False):
         super().__init__()
         self.daemon = daemon
         self.to_output = to_output
         self.data_to_process = input_data
+        self.curr_page_length = 0
+        self.curr_amount_processed = 0
+        self.data = []
 
     def run(self):
         """
@@ -62,12 +66,24 @@ class OcrWorker(Process):
             # if sent None then terminate process
             if value is None:
                 break
-            (name, filepaths, (oem, psm, best, preprocessing)) = value
-            page_length = len(filepaths)
-            ocr = OcrEngine(name)
+            (name, pdf_previews, filepaths, (oem, psm, best, preprocessing)) = value
+            self.curr_page_length = len(filepaths)
+            self.curr_amount_processed = 0
+            self.data = []
+            pool = Pool()
             for idx, filepath in enumerate(filepaths):
-                ocr.process_file(filepath=filepath, oem=oem,
-                                 psm=psm, best=best, preprocessing=preprocessing)
-                self.to_output.send(((idx / page_length)*100, None))
-            doc_id = ocr.commit_data()
-            self.to_output.send((100, doc_id))
+                pool.apply_async(OcrEngine.process_image, args=[
+                    idx, filepath, oem, psm, best, preprocessing], callback=self.emit_result)
+            pool.close()
+            pool.join()
+            doc_id = OcrEngine.commit_data(name, self.data)
+            self.to_output.send((None, doc_id))
+            # Cleanup temporary files from PDF Previews
+            for key in pdf_previews:
+                shutil.rmtree(pdf_previews[key][1])
+
+    def emit_result(self, single_result):
+        self.data.append(single_result)
+        self.curr_amount_processed += 1
+        self.to_output.send(
+            ((self.curr_amount_processed / self.curr_page_length)*100, None))
