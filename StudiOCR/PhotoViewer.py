@@ -87,15 +87,9 @@ class PhotoViewer(Qw.QGraphicsView):
     # reference for pixmap save: https://stackoverflow.com/questions/42763287/how-to-specify-the-path-when-saving-a-qpixmap
     def contextMenuEvent(self, event):
         cmenu = Qw.QMenu(self)
-        copyClipboard = cmenu.addAction("Copy to Clipboard")
         saveAs = cmenu.addAction("Save Image As")
         action = cmenu.exec_(self.mapToGlobal(event.pos()))
         clipboard = Qw.QApplication.clipboard()
-
-        if action == copyClipboard:
-            #clipboard.clear(mode=clipboard.Clipboard )
-            # clipboard.setPixmap((self._photo).pixmap())
-            clipboard.setPixmap(self.pixmap)
 
         if action == saveAs:
             file_dialog = Qw.QFileDialog(self)

@@ -4,7 +4,6 @@ import os
 import numpy as np
 from peewee import fn
 import cv2
-from PIL import Image
 import pytesseract
 from pytesseract import Output
 
@@ -77,9 +76,6 @@ class OcrEngine:
                                 image_param_name='src', other_params={'code': cv2.COLOR_RGB2GRAY})
         image_pipeline.add_step(name='Flat-Field', new_step=grayscale_flat_field_correction,
                                 image_param_name='src', other_params={'ksize': 91})
-        # image_pipeline.add_step(name='Contrast', new_step='enhance', image_param_name='image', outer_function=ImageEnhance.Contrast, other_params={'factor': 3})
-        # image_pipeline.add_step(name='Sharpness', new_step='enhance', image_param_name='image', outer_function=ImageEnhance.Sharpness, other_params={'factor': 2})
-        # image_pipeline.add_step(name='Binary Threshold', new_step=cv2.threshold, image_param_name='src', other_params={'thresh': 5, 'maxval': 255, 'type': cv2.THRESH_BINARY}, capture_index=1)
 
         # Image to be directly stored in db as RGB image in bytes with no loss during compression
         # cv2.imencode is expecting BGR image, not RGB
@@ -99,7 +95,7 @@ class OcrEngine:
         return (idx, (page_data, image_stored_bytes, ocr_page_data))
 
     @staticmethod
-    def commit_data(name, data) -> int:
+    def commit_data(name, doc_id, data) -> int:
         # If the database doesn't exist yet, generate it
         create_tables()
         db.connect(reuse_if_open=True)
@@ -109,9 +105,8 @@ class OcrEngine:
             num_pages = 0
 
             # If the document already exists, then append pages to the end of it.
-            query = OcrDocument.select().where(OcrDocument.name == name)
-            if query.exists():
-                doc = query[0]
+            if doc_id is not None:
+                doc = OcrDocument.get(OcrDocument.id == doc_id)
                 num_pages = len(doc.pages)
             else:
                 doc = OcrDocument.create(name=name)

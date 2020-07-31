@@ -317,7 +317,7 @@ class EditDocOptions(Qw.QWidget):
         self.processing_options.setStyleSheet(self.dropdown_style)
         self.processing_options.addItem("No")
         self.processing_options.addItem("Yes")
-        #default should be no
+        # default should be no
         self.processing_options.setCurrentIndex(0)
         self.processing_options.currentIndexChanged.connect(self.custom_preset)
 
@@ -385,25 +385,25 @@ class EditDocOptions(Qw.QWidget):
         db.close()
 
     def custom_preset(self):
-        #set preset to custom
+        # set preset to custom
         self.preset_options.setCurrentIndex(4)
 
     def preset_changed(self, i):
         self.processing_options.blockSignals(True)
         self.psm_num.blockSignals(True)
-        #screenshot
+        # screenshot
         if self.preset_options.currentIndex() == 0:
             self.processing_options.setCurrentIndex(0)
             self.psm_num.setCurrentIndex(0)
-        #printed text
+        # printed text
         elif self.preset_options.currentIndex() == 1:
             self.processing_options.setCurrentIndex(0)
             self.psm_num.setCurrentIndex(0)
-        #written paragraph
+        # written paragraph
         elif self.preset_options.currentIndex() == 2:
             self.processing_options.setCurrentIndex(1)
             self.psm_num.setCurrentIndex(3)
-        #written page
+        # written page
         elif self.preset_options.currentIndex() == 3:
             self.processing_options.setCurrentIndex(1)
             self.psm_num.setCurrentIndex(0)
@@ -612,7 +612,8 @@ class EditDocOptions(Qw.QWidget):
             psm_number = self.psm_num.currentIndex()+3
             best = bool(self.best_vs_fast_options.currentIndex())
             preprocessing = bool(self.processing_options.currentIndex())
-            self.new_doc_cb(name, self.pdf_previews, self._pages, oem_number,
+            doc_id = None if self._doc is None else self._doc.id
+            self.new_doc_cb(name, doc_id, self.pdf_previews, self._pages, oem_number,
                             psm_number, best, preprocessing)
             self.close_on_submit_signal.emit()
         db.close()

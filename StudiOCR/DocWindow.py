@@ -93,6 +93,10 @@ class DocWindow(Qw.QDialog):
             Qg.QIcon(get_absolute_path("icons/info_icon.png")))
         self.info_button.clicked.connect(self.display_info)
 
+        self.rename_button = Qw.QPushButton(
+            "Rename document", default=False, autoDefault=False, parent=self)
+        self.rename_button.clicked.connect(self.rename_document)
+
         self.export_button = Qw.QPushButton(
             "Export as PDF", default=False, autoDefault=False, parent=self)
         self.export_button.clicked.connect(self.export_pdf)
@@ -103,6 +107,7 @@ class DocWindow(Qw.QDialog):
             lambda: self.add_pages(self._doc))
 
         self._button_group = Qw.QHBoxLayout()
+        self._button_group.addWidget(self.rename_button)
         self._button_group.addWidget(self.add_pages_button)
         self._button_group.addWidget(self.prev_page_button)
         self._button_group.addWidget(self.page_number_box)
@@ -127,6 +132,27 @@ class DocWindow(Qw.QDialog):
         self.edit_doc_window = EditDocWindow(
             new_doc_cb, doc=doc, parent=self)
         self.edit_doc_window.show()
+
+    def rename_document(self, doc):
+        text, ok = Qw.QInputDialog().getText(self, "Rename document",
+                                             "Enter new name for document", Qw.QLineEdit.Normal)
+        db.connect(reuse_if_open=True)
+        query = OcrDocument.select().where(OcrDocument.name == text)
+        if query.exists() and text != self._doc.name:
+            msg = Qw.QMessageBox()
+            msg.setIcon(Qw.QMessageBox.Warning)
+            msg.setText("Document names must be unique and non empty.")
+            msg.setInformativeText(
+                'There is already a document with that name.')
+            msg.setWindowTitle("Error")
+            msg.exec_()
+        elif text != self._doc.name:
+            self._doc.name = text
+            self._doc.save()
+            self.setWindowTitle(text)
+            # horrible
+            self.parentWidget().update_button_name_docid(self._doc.id)
+        db.close()
 
     def export_pdf(self):
 

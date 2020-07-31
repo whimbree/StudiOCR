@@ -41,10 +41,10 @@ class MainWindow(Qw.QMainWindow):
         self.docs_in_queue = 0
         self.current_doc_process_status = 0
 
-    def new_doc(self, name, temp_folders, filenames, oem, psm, best, preprocessing):
+    def new_doc(self, name, doc_id, temp_folders, filenames, oem, psm, best, preprocessing):
         """Send filenames and doc name to ocr process"""
         self.process_queue.put(
-            (name, temp_folders, filenames, (oem, psm, best, preprocessing)))
+            (name, doc_id, temp_folders, filenames, (oem, psm, best, preprocessing)))
         self.docs_in_queue += 1
         self.update_status_bar()
 

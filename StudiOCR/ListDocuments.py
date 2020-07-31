@@ -116,6 +116,16 @@ class ListDocuments(Qw.QWidget):
         temp_widget.setLayout(self.doc_grid)
         self.scroll_area.setWidget(temp_widget)
 
+    def update_button_name_docid(self, doc_id):
+        db.connect(reuse_if_open=True)
+        for button in self._doc_buttons:
+            if button.doc.id == doc_id:
+                doc = OcrDocument.get(OcrDocument.id == doc_id)
+                button.name = doc.name
+                break
+        self.update_filter()
+        db.close()
+
     @Qc.Slot(int)
     def display_new_document(self, doc_id):
         """
@@ -226,16 +236,16 @@ class SingleDocumentButton(Qw.QToolButton):
 
         self.setFixedSize(160, 160)
 
-        layout = Qw.QVBoxLayout()
+        self.layout = Qw.QVBoxLayout()
 
-        label = Qw.QLabel(name)
+        self.label = Qw.QLabel(name)
         if image is not None:
             thumbnail = DocumentThumbnail(image)
-            layout.addWidget(thumbnail, alignment=Qc.Qt.AlignCenter)
+            self.layout.addWidget(thumbnail, alignment=Qc.Qt.AlignCenter)
 
-        layout.addWidget(label, alignment=Qc.Qt.AlignCenter)
+        self.layout.addWidget(self.label, alignment=Qc.Qt.AlignCenter)
 
-        self.setLayout(layout)
+        self.setLayout(self.layout)
 
     @property
     def name(self):
@@ -244,6 +254,7 @@ class SingleDocumentButton(Qw.QToolButton):
     @name.setter
     def name(self, name):
         self._name = name
+        self.label.setText(self._name)
 
     @property
     def doc(self):

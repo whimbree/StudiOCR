@@ -66,7 +66,8 @@ class OcrWorker(Process):
             # if sent None then terminate process
             if value is None:
                 break
-            (name, pdf_previews, filepaths, (oem, psm, best, preprocessing)) = value
+            (name, doc_id, pdf_previews, filepaths,
+             (oem, psm, best, preprocessing)) = value
             self.curr_page_length = len(filepaths)
             self.curr_amount_processed = 0
             self.data = []
@@ -79,7 +80,7 @@ class OcrWorker(Process):
             if len(self.data) == 0:
                 print("ERROR: DATA TO COMMIT IS EMPTY. THIS SHOULD NEVER HAPPEN!")
             else:
-                doc_id = OcrEngine.commit_data(name, self.data)
+                doc_id = OcrEngine.commit_data(name, doc_id, self.data)
                 self.to_output.send((None, doc_id))
             # Cleanup temporary files from PDF Previews
             for key in pdf_previews:
