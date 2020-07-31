@@ -87,4 +87,5 @@ Green | Greater than or equal to 80
 Blue | Less than 80 and greater than or equal to 40
 Red | Less than 40
 - Click on the info icon to display a window explaining document features
+
 ![](https://raw.githubusercontent.com/BSpwr/StudiOCR/master/screenshots/Information2.png)
