@@ -2,7 +2,6 @@ from PySide2 import QtCore as Qc
 from PySide2 import QtWidgets as Qw
 from PySide2 import QtGui as Qg
 
-
 # PhotoViewer Code: https://stackoverflow.com/questions/35508711/how-to-enable-pan-and-zoom-in-a-qgraphicsview
 class PhotoViewer(Qw.QGraphicsView):
 
@@ -22,6 +21,8 @@ class PhotoViewer(Qw.QGraphicsView):
         self.setHorizontalScrollBarPolicy(Qc.Qt.ScrollBarAlwaysOff)
         self.setBackgroundBrush(Qg.QBrush(Qg.QColor(30, 30, 30)))
         self.setFrameShape(Qw.QFrame.NoFrame)
+
+        self.pixmap = Qg.QPixmap()
 
     def hasPhoto(self):
         return not self._empty
@@ -54,6 +55,7 @@ class PhotoViewer(Qw.QGraphicsView):
             self._empty = False
             self.setDragMode(Qw.QGraphicsView.ScrollHandDrag)
             self._photo.setPixmap(pixmap)
+            self.pixmap = pixmap
         else:
             self._empty = True
             self.setDragMode(Qw.QGraphicsView.NoDrag)
@@ -76,3 +78,42 @@ class PhotoViewer(Qw.QGraphicsView):
                     self.fitInView()
                 else:
                     self._zoom = 0
+
+    #reference for context menu: https://stackoverflow.com/questions/60210071/how-to-right-click-to-save-picture-or-file
+    #reference for clipboard: https://stackoverflow.com/questions/17676373/python-matplotlib-pyqt-copy-image-to-clipboard
+    #reference for pixmap save: https://stackoverflow.com/questions/42763287/how-to-specify-the-path-when-saving-a-qpixmap
+    def contextMenuEvent(self, event):
+        cmenu = Qw.QMenu(self)
+        copyClipboard = cmenu.addAction("Copy to Clipboard")
+        saveAs = cmenu.addAction("Save Image As")
+        action = cmenu.exec_(self.mapToGlobal(event.pos()))
+        clipboard = Qw.QApplication.clipboard()
+
+        if action == copyClipboard:
+            #clipboard.clear(mode=clipboard.Clipboard )
+            #clipboard.setPixmap((self._photo).pixmap())
+            clipboard.setPixmap(self.pixmap)
+
+        if action == saveAs:
+            file_dialog = Qw.QFileDialog(self)
+            dropdown_style = """QComboBox::item:checked {
+                height: 12px;
+                border: 1px solid #32414B;
+                margin-top: 0px;
+                margin-bottom: 0px;
+                padding: 4px;
+                padding-left: 0px;
+                }"""
+
+            file_dialog = Qw.QFileDialog()
+            file_dialog.setStyleSheet(dropdown_style)
+            file_dialog.setFileMode(Qw.QFileDialog.AnyFile)
+            file_dialog.setAcceptMode(Qw.QFileDialog.AcceptSave)
+            file_dialog.setNameFilters([
+            "JPG File (*.jpg)"])
+            file_dialog.selectNameFilter("JPG File (*.jpg)")
+            file_dialog.setDefaultSuffix("jpg")
+
+            if file_dialog.exec_():
+                file = file_dialog.selectedFiles()[0]
+                (self.pixmap).save(file, "JPG")
