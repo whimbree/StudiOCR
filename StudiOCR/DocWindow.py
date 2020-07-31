@@ -94,7 +94,7 @@ class DocWindow(Qw.QDialog):
         self.info_button.clicked.connect(self.display_info)
 
         self.rename_button = Qw.QPushButton(
-            "Rename document", default=False, autoDefault=False, parent=self)
+            "Rename doc", default=False, autoDefault=False, parent=self)
         self.rename_button.clicked.connect(self.rename_document)
 
         self.export_button = Qw.QPushButton(
