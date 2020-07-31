@@ -48,6 +48,7 @@ StudiOCR is an application to index notes and make them searchable by using OCR.
 - Add/Remove *.png, *.jpg, *.jpeg, or *.pdf files to be processed by OCR into a document in the database
 - Input the document name
 - Click show document preview to preview the document with all images as pages on the side
+![](https://raw.githubusercontent.com/BSpwr/StudiOCR/master/screenshots/DocumentPreview.png)
 - Change the preset for image analysis optimization between: Custom, Screenshot, Printed Text(PDF), Written Paragraph, or Written Page 
 - Underneath the Process Document button is a status bar for processing any PDFs selected into images
 - Click on the info icon to display a window explaining document options 
@@ -85,3 +86,5 @@ Box Color | Confidence Value
 Green | Greater than or equal to 80
 Blue | Less than 80 and greater than or equal to 40
 Red | Less than 40
+- Click on the info icon to display a window explaining document features
+![](https://raw.githubusercontent.com/BSpwr/StudiOCR/master/screenshots/Information2.png)
