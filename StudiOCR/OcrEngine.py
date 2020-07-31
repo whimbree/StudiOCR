@@ -62,12 +62,13 @@ class OcrEngine:
 
         # Setting up and running image processing pipeline, if necessary
         image_pipeline = ImagePipeline()
-        image_pipeline.add_step(name='Grayscale', new_step=cv2.cvtColor, image_param_name='src', other_params={'code': cv2.COLOR_RGB2GRAY})
-        image_pipeline.add_step(name='Flat-Field', new_step=grayscale_flat_field_correction, image_param_name='src', other_params={'ksize': 21})
+        image_pipeline.add_step(name='Grayscale', new_step=cv2.cvtColor,
+                                image_param_name='src', other_params={'code': cv2.COLOR_RGB2GRAY})
+        # image_pipeline.add_step(name='Flat-Field', new_step=grayscale_flat_field_correction,
+        #                         image_param_name='src', other_params={'ksize': 21})
         # image_pipeline.add_step(name='Contrast', new_step='enhance', image_param_name='image', outer_function=ImageEnhance.Contrast, other_params={'factor': 3})
         # image_pipeline.add_step(name='Sharpness', new_step='enhance', image_param_name='image', outer_function=ImageEnhance.Sharpness, other_params={'factor': 2})
         # image_pipeline.add_step(name='Binary Threshold', new_step=cv2.threshold, image_param_name='src', other_params={'thresh': 5, 'maxval': 255, 'type': cv2.THRESH_BINARY}, capture_index=1)
-
 
         # Image to be directly stored in db as RGB image in bytes with no loss during compression
         # cv2.imencode is expecting BGR image, not RGB

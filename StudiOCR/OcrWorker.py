@@ -76,8 +76,11 @@ class OcrWorker(Process):
                     idx, filepath, oem, psm, best, preprocessing], callback=self.emit_result)
             pool.close()
             pool.join()
-            doc_id = OcrEngine.commit_data(name, self.data)
-            self.to_output.send((None, doc_id))
+            if len(self.data) == 0:
+                print("ERROR: DATA TO COMMIT IS EMPTY. THIS SHOULD NEVER HAPPEN!")
+            else:
+                doc_id = OcrEngine.commit_data(name, self.data)
+                self.to_output.send((None, doc_id))
             # Cleanup temporary files from PDF Previews
             for key in pdf_previews:
                 shutil.rmtree(pdf_previews[key][1])
