@@ -2,6 +2,7 @@ from PySide2 import QtCore as Qc
 from PySide2 import QtWidgets as Qw
 from PySide2 import QtGui as Qg
 
+
 # PhotoViewer Code: https://stackoverflow.com/questions/35508711/how-to-enable-pan-and-zoom-in-a-qgraphicsview
 class PhotoViewer(Qw.QGraphicsView):
 
@@ -13,6 +14,8 @@ class PhotoViewer(Qw.QGraphicsView):
         self._empty = True
         self._scene = Qw.QGraphicsScene(self)
         self._photo = Qw.QGraphicsPixmapItem()
+        self._photo.setTransformationMode(
+            Qc.Qt.TransformationMode.SmoothTransformation)
         self._scene.addItem(self._photo)
         self.setScene(self._scene)
         self.setTransformationAnchor(Qw.QGraphicsView.AnchorUnderMouse)
@@ -79,9 +82,9 @@ class PhotoViewer(Qw.QGraphicsView):
                 else:
                     self._zoom = 0
 
-    #reference for context menu: https://stackoverflow.com/questions/60210071/how-to-right-click-to-save-picture-or-file
-    #reference for clipboard: https://stackoverflow.com/questions/17676373/python-matplotlib-pyqt-copy-image-to-clipboard
-    #reference for pixmap save: https://stackoverflow.com/questions/42763287/how-to-specify-the-path-when-saving-a-qpixmap
+    # reference for context menu: https://stackoverflow.com/questions/60210071/how-to-right-click-to-save-picture-or-file
+    # reference for clipboard: https://stackoverflow.com/questions/17676373/python-matplotlib-pyqt-copy-image-to-clipboard
+    # reference for pixmap save: https://stackoverflow.com/questions/42763287/how-to-specify-the-path-when-saving-a-qpixmap
     def contextMenuEvent(self, event):
         cmenu = Qw.QMenu(self)
         copyClipboard = cmenu.addAction("Copy to Clipboard")
@@ -91,7 +94,7 @@ class PhotoViewer(Qw.QGraphicsView):
 
         if action == copyClipboard:
             #clipboard.clear(mode=clipboard.Clipboard )
-            #clipboard.setPixmap((self._photo).pixmap())
+            # clipboard.setPixmap((self._photo).pixmap())
             clipboard.setPixmap(self.pixmap)
 
         if action == saveAs:
@@ -110,8 +113,8 @@ class PhotoViewer(Qw.QGraphicsView):
             file_dialog.setFileMode(Qw.QFileDialog.AnyFile)
             file_dialog.setAcceptMode(Qw.QFileDialog.AcceptSave)
             file_dialog.setNameFilters([
-            "JPG File (*.jpg)"])
-            file_dialog.selectNameFilter("JPG File (*.jpg)")
+                "JPEG File (*.jpg)"])
+            file_dialog.selectNameFilter("JPEG File (*.jpg)")
             file_dialog.setDefaultSuffix("jpg")
 
             if file_dialog.exec_():
