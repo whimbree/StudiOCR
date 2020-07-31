@@ -133,7 +133,7 @@ class ImagePipeline:
             else:
                 """PIL function"""
                 pil_object = outer_function(
-                    **{image_param_name: Image.fromarray(obj=image_current)})
+                    **{image_param_name: Image.fromarray(obj=image_current, mode= 'RGB' if image_current.ndim == 3 else 'L')})
                 pil_func = getattr(pil_object, func)
                 retval = pil_func() if other_params is None else pil_func(**other_params)
                 image_current = retval[capture_index] if type(
