@@ -81,7 +81,7 @@ PSM Number | Value
 - Hold Ctrl and scroll up/down to zoom in and out. Users can also pan around the image. This applies to any images being displayed.
 - Toggle Case Sensitive to do a case sensitive search 
 ![](https://raw.githubusercontent.com/BSpwr/StudiOCR/master/screenshots/MatchingPages2.png)
-- Right click the image and click Save Image As to save the image as a .jpg
+- Right click the image and click Save Image As to save the image as a jpg
 - Click the Export as PDF button to export the document as a pdf
 - Click the Rename doc button to rename the document
 - Click the Add pages button to add more pages to the current document
