@@ -79,6 +79,7 @@ PSM Number | Value
 - Toggle show matching pages to only display pages with matching text and to cycle through them 
 ![](https://raw.githubusercontent.com/BSpwr/StudiOCR/master/screenshots/MatchingPages.png)
 - Hold Ctrl and scroll up/down to zoom in and out. Users can also pan around the image. This applies to any images being displayed.
+- Select Case Sensitive to filter search results with case sensitivity 
 ![](https://raw.githubusercontent.com/BSpwr/StudiOCR/master/screenshots/MatchingPages2.png)
 - Right click the image and click Save Image As to save the image as a .jpg
 - Click the Export as PDF button to export the document as a pdf
