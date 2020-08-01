@@ -49,6 +49,7 @@ StudiOCR is an application to index notes and make them searchable by using OCR.
 - Input the document name
 - Click show document preview to preview the document with all images as pages on the side
 ![](https://raw.githubusercontent.com/BSpwr/StudiOCR/master/screenshots/DocumentPreview.png)
+- Hold Ctrl and scroll up/down to zoom in and out. Users can also pan around the image
 - Change the preset for image analysis optimization between: Custom, Screenshot, Printed Text(PDF), Written Paragraph, or Written Page 
 - Underneath the Process Document button is a status bar for processing any PDFs selected into images
 - Click on the info icon to display a window explaining document options 
@@ -75,10 +76,16 @@ PSM Number | Value
 ![](https://raw.githubusercontent.com/BSpwr/StudiOCR/master/screenshots/DocWindow.png)
 - Enter text in the search bar to search for matching text in the document 
 - Click the Next/Previous Page buttons to cycle through the pages in the document
-- The current page number is shown at the bottom of the window
+- The current page number is shown at the bottom of the window and can be manually entered
 - Toggle show matching pages to only display pages with matching text and to cycle through them 
 ![](https://raw.githubusercontent.com/BSpwr/StudiOCR/master/screenshots/MatchingPages.png)
-
+- Hold Ctrl and scroll up/down to zoom in and out. Users can also pan around the image
+![](https://raw.githubusercontent.com/BSpwr/StudiOCR/master/screenshots/MatchingPages2.png)
+- Right click the image and click Save Image As to save the image as a .jpg
+- Click the Export as PDF button to export the document as a pdf
+- Click the Rename doc button to rename the document
+- Click the Add pages button to add more pages to the current document
+![](https://raw.githubusercontent.com/BSpwr/StudiOCR/master/screenshots/RenameAdd.png)
 - Box Color:
 
 Box Color | Confidence Value
