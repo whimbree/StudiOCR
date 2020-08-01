@@ -49,7 +49,7 @@ StudiOCR is an application to index notes and make them searchable by using OCR.
 - Input the document name
 - Click show document preview to preview the document with all images as pages on the side
 ![](https://raw.githubusercontent.com/BSpwr/StudiOCR/master/screenshots/DocumentPreview.png)
-- Change the preset for image analysis optimization between: Custom, Screenshot, Printed Text(PDF), Written Paragraph, or Written Page 
+- Change the preset for image analysis optimization between: Custom, Screenshot, Printed Text (PDF), Written Paragraph, or Written Page 
 - Underneath the Process Document button is a status bar for processing any PDFs selected into images
 - Click on the info icon to display a window explaining document options 
 ![](https://raw.githubusercontent.com/BSpwr/StudiOCR/master/screenshots/Information.png)
@@ -79,7 +79,7 @@ PSM Number | Value
 - Toggle show matching pages to only display pages with matching text and to cycle through them 
 ![](https://raw.githubusercontent.com/BSpwr/StudiOCR/master/screenshots/MatchingPages.png)
 - Hold Ctrl and scroll up/down to zoom in and out. Users can also pan around the image. This applies to any images being displayed.
-- Select Case Sensitive to filter search results with case sensitivity 
+- Toggle Case Sensitive to do a case sensitive search 
 ![](https://raw.githubusercontent.com/BSpwr/StudiOCR/master/screenshots/MatchingPages2.png)
 - Right click the image and click Save Image As to save the image as a .jpg
 - Click the Export as PDF button to export the document as a pdf
