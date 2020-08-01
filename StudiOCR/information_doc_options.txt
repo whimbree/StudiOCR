@@ -3,8 +3,8 @@ Best vs Fast Model:
     - Fast will allow for a faster OCR analysis
 
 Image Preprocessing:
-    - Preprocessing is better for black text on a white background
-    - Image is run through a filter that performs greyscale and improves contrast
+    - Preprocessing is better for written text or pictures taken in poor lighting
+    - Image is run through a filter that performs grayscale and flat-field correction
 
 PSM Number:
     3 = Fully automatic page segmentation, but no OSD. (Default)

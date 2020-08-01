@@ -109,7 +109,15 @@ class OcrEngine:
                 doc = OcrDocument.get(OcrDocument.id == doc_id)
                 num_pages = len(doc.pages)
             else:
-                doc = OcrDocument.create(name=name)
+                # If multiple documents with the same name are in queue, avoid crashing
+                # by appending numbers to the name until the name is unique
+                new_name = name
+                name_number_append = 0
+                while OcrDocument.select().where(OcrDocument.name == new_name).exists():
+                    name_number_append += 1
+                    new_name = name + str(name_number_append)
+
+                doc = OcrDocument.create(name=new_name)
 
             doc_id = doc.id
 
